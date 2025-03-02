@@ -4,6 +4,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { memberService } from '../../services/api';
 import PropTypes from 'prop-types';
 
+import {
+  FaSync,
+  FaCalendarCheck,
+  FaEdit,
+  FaExchangeAlt,
+  FaSignOutAlt,
+  FaMoneyBillWave,
+  FaClock,
+  FaIdCard
+} from 'react-icons/fa';
+
 const MemberProfile = ({ memberNumber }) => {
   const [memberData, setMemberData] = useState(null);
   const [payments, setPayments] = useState([]);
@@ -41,6 +52,64 @@ const MemberProfile = ({ memberNumber }) => {
       setLoading(false);
     }
   }, [memberNumber]);
+  
+  const handleRenewMembership = async (member) => {
+    try {
+      const response = await memberService.renewMembership(member.number);
+      // Handle success
+      console.log('Membership renewed:', response);
+      fetchMemberData(); // Refresh data
+    } catch (error) {
+      console.error('Error renewing membership:', error);
+    }
+  };
+  
+  const handleRecordAttendance = async (memberNumber) => {
+    try {
+      const response = await memberService.recordAttendance(memberNumber);
+      console.log('Attendance recorded:', response);
+    } catch (error) {
+      console.error('Error recording attendance:', error);
+    }
+  };
+  
+  const handleEditMember = (member) => {
+    // Implement edit functionality or navigation
+    console.log('Edit member:', member);
+  };
+  
+  const handleTransferDays = async (member) => {
+    try {
+      // Implement transfer days functionality
+      console.log('Transfer days for member:', member);
+    } catch (error) {
+      console.error('Error transferring days:', error);
+    }
+  };
+  
+  const handleCheckOut = async (memberNumber) => {
+    try {
+      const response = await memberService.checkOutMember(memberNumber);
+      console.log('Member checked out:', response);
+    } catch (error) {
+      console.error('Error checking out member:', error);
+    }
+  };
+  
+  const handleCheckPaymentStatus = (member) => {
+    // Implement payment status check
+    console.log('Check payment status for:', member);
+  };
+  
+  const handleViewSchedule = (member) => {
+    // Implement schedule view
+    console.log('View schedule for:', member);
+  };
+  
+  const handlePrintMemberCard = (member) => {
+    // Implement card printing functionality
+    console.log('Print card for:', member);
+  };
 
   useEffect(() => {
     fetchMemberData();
@@ -99,6 +168,108 @@ const MemberProfile = ({ memberNumber }) => {
               <p className="text-gray-600">Expiry Date</p>
               <p className="font-medium">{new Date(memberData.membership_end_date).toLocaleDateString()}</p>
             </div>
+          </div>
+        </div>
+        
+        {/* Action Buttons */}
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Member Actions</h3>
+          <div className="grid grid-cols-4 md:grid-cols-14  gap-4">
+            {/* Renew Membership */}
+            <button
+              onClick={() => handleRenewMembership(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
+              title="Renew Membership"
+            >
+              <FaSync className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Renew Membership
+              </span>
+            </button>
+        
+            {/* Record Attendance */}
+            <button
+              onClick={() => handleRecordAttendance(memberData.number)}
+              className="relative group flex items-center justify-center p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200"
+              title="Record Attendance"
+            >
+              <FaCalendarCheck className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Record Attendance
+              </span>
+            </button>
+        
+            {/* Edit Member */}
+            <button
+              onClick={() => handleEditMember(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors duration-200"
+              title="Edit Details"
+            >
+              <FaEdit className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Edit Details
+              </span>
+            </button>
+        
+            {/* Transfer Days */}
+            <button
+              onClick={() => handleTransferDays(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors duration-200"
+              title="Transfer Days"
+            >
+              <FaExchangeAlt className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Transfer Days
+              </span>
+            </button>
+        
+            {/* Check Out */}
+            <button
+              onClick={() => handleCheckOut(memberData.number)}
+              className="relative group flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+              title="Check Out"
+            >
+              <FaSignOutAlt className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Check Out
+              </span>
+            </button>
+        
+            {/* Check Payment Status */}
+            <button
+              onClick={() => handleCheckPaymentStatus(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+              title="Payment Status"
+            >
+              <FaMoneyBillWave className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Payment Status
+              </span>
+            </button>
+        
+            {/* View Schedule */}
+            <button
+              onClick={() => handleViewSchedule(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200"
+              title="View Schedule"
+            >
+              <FaClock className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                View Schedule
+              </span>
+            </button>
+        
+            {/* Print Member Card */}
+            <button
+              onClick={() => handlePrintMemberCard(memberData)}
+              className="relative group flex items-center justify-center p-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors duration-200"
+              title="Print Card"
+            >
+              <FaIdCard className="text-xl" />
+              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                Print Card
+              </span>
+            </button>
           </div>
         </div>
 
