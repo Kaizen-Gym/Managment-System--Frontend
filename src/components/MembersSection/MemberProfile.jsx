@@ -1,8 +1,8 @@
 /* eslint-disable no-unused-vars */
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { memberService } from '../../services/api';
 import PropTypes from 'prop-types';
+import axios from 'axios';
 
 import {
   FaSync,
@@ -12,8 +12,9 @@ import {
   FaSignOutAlt,
   FaMoneyBillWave,
   FaClock,
-  FaIdCard
+  FaIdCard,
 } from 'react-icons/fa';
+import { Dialog } from '@headlessui/react';
 
 const MemberProfile = ({ memberNumber }) => {
   const [memberData, setMemberData] = useState(null);
@@ -21,6 +22,8 @@ const MemberProfile = ({ memberNumber }) => {
   const [attendance, setAttendance] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [availablePlans, setAvailablePlans] = useState([]);
+  const [IsRenewalOpen, setIsRenewalOpen] = useState(false);
 
   const fetchMemberData = useCallback(async () => {
     if (!memberNumber) {
@@ -38,7 +41,7 @@ const MemberProfile = ({ memberNumber }) => {
       // Then fetch payments and attendance
       const [memberPayments, memberAttendance] = await Promise.all([
         memberService.getMemberPayments(memberNumber),
-        memberService.getMemberAttendance(memberNumber)
+        memberService.getMemberAttendance(memberNumber),
       ]);
 
       setPayments(memberPayments);
@@ -52,18 +55,57 @@ const MemberProfile = ({ memberNumber }) => {
       setLoading(false);
     }
   }, [memberNumber]);
-  
-  const handleRenewMembership = async (member) => {
+
+  const fetchMembershipPlans = async () => {
     try {
-      const response = await memberService.renewMembership(member.number);
-      // Handle success
-      console.log('Membership renewed:', response);
-      fetchMemberData(); // Refresh data
-    } catch (error) {
-      console.error('Error renewing membership:', error);
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setAvailablePlans(response.data);
+    } catch (err) {
+      console.error('Error fetching membership plans:', err);
     }
   };
-  
+
+  // Opens the renewal modal
+  const handleRenewMembership = async (member) => {
+    setMemberData(member);
+    setIsRenewalOpen(true);
+  };
+
+  // Handles form submission in the modal
+  const handleRenewMember = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/memberships/renew`,
+        {
+          number: memberData.number,
+          membership_type: memberData.membership_type,
+          membership_amount: memberData.membership_amount,
+          membership_payment_status: "Paid",
+          membership_payment_mode: memberData.membership_payment_mode,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      fetchMemberData();
+      setIsRenewalOpen(false);
+    } catch (err) {
+      console.error("Error renewing membership:", err);
+    }
+  };
+
   const handleRecordAttendance = async (memberNumber) => {
     try {
       const response = await memberService.recordAttendance(memberNumber);
@@ -72,21 +114,19 @@ const MemberProfile = ({ memberNumber }) => {
       console.error('Error recording attendance:', error);
     }
   };
-  
+
   const handleEditMember = (member) => {
-    // Implement edit functionality or navigation
     console.log('Edit member:', member);
   };
-  
+
   const handleTransferDays = async (member) => {
     try {
-      // Implement transfer days functionality
       console.log('Transfer days for member:', member);
     } catch (error) {
       console.error('Error transferring days:', error);
     }
   };
-  
+
   const handleCheckOut = async (memberNumber) => {
     try {
       const response = await memberService.checkOutMember(memberNumber);
@@ -95,24 +135,22 @@ const MemberProfile = ({ memberNumber }) => {
       console.error('Error checking out member:', error);
     }
   };
-  
+
   const handleCheckPaymentStatus = (member) => {
-    // Implement payment status check
     console.log('Check payment status for:', member);
   };
-  
+
   const handleViewSchedule = (member) => {
-    // Implement schedule view
     console.log('View schedule for:', member);
   };
-  
+
   const handlePrintMemberCard = (member) => {
-    // Implement card printing functionality
     console.log('Print card for:', member);
   };
 
   useEffect(() => {
     fetchMemberData();
+    fetchMembershipPlans();
   }, [fetchMemberData]);
 
   if (loading) return <div>Loading...</div>;
@@ -123,7 +161,7 @@ const MemberProfile = ({ memberNumber }) => {
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
         <h2 className="text-2xl font-bold mb-6">Member Profile</h2>
-        
+
         {/* Personal Information */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
@@ -142,7 +180,9 @@ const MemberProfile = ({ memberNumber }) => {
             </div>
             <div>
               <p className="text-gray-600">Join Date</p>
-              <p className="font-medium">{new Date(memberData.createdAt).toLocaleDateString()}</p>
+              <p className="font-medium">
+                {new Date(memberData.createdAt).toLocaleDateString()}
+              </p>
             </div>
           </div>
         </div>
@@ -157,25 +197,31 @@ const MemberProfile = ({ memberNumber }) => {
             </div>
             <div>
               <p className="text-gray-600">Status</p>
-              <p className={`font-medium ${
-                memberData.membership_status.toLowerCase() === 'active' ? 'text-green-600' : 
-                memberData.membership_status.toLowerCase() === 'expired' ? 'text-red-600' : 'text-yellow-600'
-              }`}>
+              <p
+                className={`font-medium ${
+                  memberData.membership_status.toLowerCase() === 'active'
+                    ? 'text-green-600'
+                    : memberData.membership_status.toLowerCase() === 'expired'
+                      ? 'text-red-600'
+                      : 'text-yellow-600'
+                }`}
+              >
                 {memberData.membership_status}
               </p>
             </div>
             <div>
               <p className="text-gray-600">Expiry Date</p>
-              <p className="font-medium">{new Date(memberData.membership_end_date).toLocaleDateString()}</p>
+              <p className="font-medium">
+                {new Date(memberData.membership_end_date).toLocaleDateString()}
+              </p>
             </div>
           </div>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold mb-4">Member Actions</h3>
-          <div className="grid grid-cols-4 md:grid-cols-14  gap-4">
-            {/* Renew Membership */}
+          <div className="grid grid-cols-4 gap-4">
             <button
               onClick={() => handleRenewMembership(memberData)}
               className="relative group flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
@@ -186,7 +232,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Renew Membership
               </span>
             </button>
-        
+
             {/* Record Attendance */}
             <button
               onClick={() => handleRecordAttendance(memberData.number)}
@@ -198,7 +244,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Record Attendance
               </span>
             </button>
-        
+
             {/* Edit Member */}
             <button
               onClick={() => handleEditMember(memberData)}
@@ -210,7 +256,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Edit Details
               </span>
             </button>
-        
+
             {/* Transfer Days */}
             <button
               onClick={() => handleTransferDays(memberData)}
@@ -222,7 +268,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Transfer Days
               </span>
             </button>
-        
+
             {/* Check Out */}
             <button
               onClick={() => handleCheckOut(memberData.number)}
@@ -234,7 +280,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Check Out
               </span>
             </button>
-        
+
             {/* Check Payment Status */}
             <button
               onClick={() => handleCheckPaymentStatus(memberData)}
@@ -246,7 +292,7 @@ const MemberProfile = ({ memberNumber }) => {
                 Payment Status
               </span>
             </button>
-        
+
             {/* View Schedule */}
             <button
               onClick={() => handleViewSchedule(memberData)}
@@ -258,7 +304,7 @@ const MemberProfile = ({ memberNumber }) => {
                 View Schedule
               </span>
             </button>
-        
+
             {/* Print Member Card */}
             <button
               onClick={() => handlePrintMemberCard(memberData)}
@@ -280,21 +326,37 @@ const MemberProfile = ({ memberNumber }) => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Amount
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Status
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {payments.map((payment) => (
                   <tr key={payment._id}>
                     <td className="px-6 py-4">
-                      {new Date(payment.membership_payment_date).toLocaleDateString()}
+                      {new Date(
+                        payment.membership_payment_date
+                      ).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4">${payment.membership_amount.toFixed(2)}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                        ${payment.membership_payment_status.toLowerCase() === 'paid' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      ${payment.membership_amount.toFixed(2)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          payment.membership_payment_status.toLowerCase() ===
+                          'paid'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {payment.membership_payment_status}
                       </span>
                     </td>
@@ -312,18 +374,30 @@ const MemberProfile = ({ memberNumber }) => {
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check In</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Check Out</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Check In
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Check Out
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {attendance.map((record) => (
                   <tr key={record._id}>
-                    <td className="px-6 py-4">{new Date(record.checkIn).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">{new Date(record.checkIn).toLocaleTimeString()}</td>
                     <td className="px-6 py-4">
-                      {record.checkOut ? new Date(record.checkOut).toLocaleTimeString() : '-'}
+                      {new Date(record.checkIn).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      {new Date(record.checkIn).toLocaleTimeString()}
+                    </td>
+                    <td className="px-6 py-4">
+                      {record.checkOut
+                        ? new Date(record.checkOut).toLocaleTimeString()
+                        : '-'}
                     </td>
                   </tr>
                 ))}
@@ -332,6 +406,88 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </div>
       </div>
+      {IsRenewalOpen && (
+        <Dialog
+          open={IsRenewalOpen}
+          onClose={() => setIsRenewalOpen(false)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Dialog.Panel className="bg-white rounded-lg p-6">
+              <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
+                Renew Membership
+              </Dialog.Title>
+              <form onSubmit={handleRenewMember}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Membership Type
+                    </label>
+                    <select
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={memberData?.membership_type}
+                      onChange={(e) => {
+                        const selectedPlan = availablePlans.find(
+                          (plan) => plan.name === e.target.value
+                        );
+                        setMemberData({
+                          ...memberData,
+                          membership_type: e.target.value,
+                          membership_amount: selectedPlan?.price,
+                        });
+                      }}
+                    >
+                      {availablePlans.map((plan) => (
+                        <option key={plan._id} value={plan.name}>
+                          {plan.name} - ₹{plan.price}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Payment Mode
+                    </label>
+                    <select
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={memberData?.membership_payment_mode}
+                      onChange={(e) =>
+                        setMemberData({
+                          ...memberData,
+                          membership_payment_mode: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
+                    onClick={() => setIsRenewalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg"
+                  >
+                    Renew Membership
+                  </button>
+                </div>
+              </form>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
+      )}
     </div>
   );
 };
