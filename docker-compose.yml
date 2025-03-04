@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"  # Map container's port 80 to host's port 3000
+    environment:
+      - VITE_API_URL=http://localhost:5050  # Point to backend service
+    depends_on:
+      - backend  # Ensure backend starts first
+
+  backend:
+    build: 
+      context: ../backend  # Path to backend directory
+      dockerfile: Dockerfile
+    ports:
+      - "5050:5050"  # Map backend port
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/gym_management
+      - JWT_SECRET=your_jwt_secret
+      - PORT=5050
+      # Add other backend environment variables as needed
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db  # Persist MongoDB data
+
+volumes:
+  mongodb_data:  # Define volume for MongoDB data persistence
+
+networks:
+  default:
+    name: gym_management_network
+    driver: bridge
