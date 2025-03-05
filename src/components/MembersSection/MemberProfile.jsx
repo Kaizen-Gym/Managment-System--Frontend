@@ -3,7 +3,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { memberService } from '../../services/api';
 import PropTypes from 'prop-types';
 import axios from 'axios';
-
 import {
   FaSync,
   FaCalendarCheck,
@@ -16,6 +15,9 @@ import {
 } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 
+//components
+import SuccessfullPayment from '../Animations/SuccessfulPayment';
+
 const MemberProfile = ({ memberNumber }) => {
   const [memberData, setMemberData] = useState(null);
   const [payments, setPayments] = useState([]);
@@ -24,6 +26,12 @@ const MemberProfile = ({ memberNumber }) => {
   const [error, setError] = useState(null);
   const [availablePlans, setAvailablePlans] = useState([]);
   const [IsRenewalOpen, setIsRenewalOpen] = useState(false);
+  const [ShowSuccessfullPayment, setShowSuccessfullPayment] = useState(false);
+  const [isPayDueModalOpen, setIsPayDueModalOpen] = useState(false);
+  const [duePayment, setDuePayment] = useState({
+    amount: '',
+    payment_mode: 'Cash',
+  });
 
   const fetchMemberData = useCallback(async () => {
     if (!memberNumber) {
@@ -73,36 +81,85 @@ const MemberProfile = ({ memberNumber }) => {
     }
   };
 
+  const handleRenewalDueAmountChange = (e) => {
+    const dueAmount = parseFloat(e.target.value) || 0;
+    setMemberData({
+      ...memberData,
+      membership_due_amount: e.target.value,
+      membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
+    });
+  };
+
+  // This function handles the due payment submission from the modal
+  const handlePayDueSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        'http://localhost:5050/api/memberships/pay-due',
+        {
+          number: memberData.number,
+          amount_paid: parseFloat(duePayment.amount),
+          payment_mode: duePayment.payment_mode,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data) {
+        setShowSuccessfullPayment(true);
+        setIsPayDueModalOpen(false);
+        await fetchMemberData();
+        
+        setTimeout(() => {
+          setShowSuccessfullPayment(false);
+        }, 1500); 
+      }
+    } catch (error) {
+      setShowSuccessfullPayment(false);
+      console.error('Error processing due payment:', error);
+      alert(error.response?.data?.message || 'Error processing payment');
+    }
+  };
+
   // Opens the renewal modal
   const handleRenewMembership = async (member) => {
     setMemberData(member);
     setIsRenewalOpen(true);
   };
 
-  // Handles form submission in the modal
+  // Handles form submission in the renewal modal
   const handleRenewMember = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       await axios.post(
         `${import.meta.env.VITE_API_URL}/api/memberships/renew`,
         {
           number: memberData.number,
           membership_type: memberData.membership_type,
           membership_amount: memberData.membership_amount,
-          membership_payment_status: "Paid",
+          membership_payment_status: memberData.membership_payment_status,
+          membership_due_amount: memberData.membership_due_amount,
           membership_payment_mode: memberData.membership_payment_mode,
         },
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       fetchMemberData();
       setIsRenewalOpen(false);
+      setShowSuccessfullPayment(true);
+      setTimeout(() => {
+        setShowSuccessfullPayment(false);
+      }, 1500);
     } catch (err) {
-      console.error("Error renewing membership:", err);
+      console.error('Error renewing membership:', err);
     }
   };
 
@@ -222,6 +279,7 @@ const MemberProfile = ({ memberNumber }) => {
         <div className="mb-8">
           <h3 className="text-lg font-semibold mb-4">Member Actions</h3>
           <div className="grid grid-cols-4 gap-4">
+            {/* Renew Membership */}
             <button
               onClick={() => handleRenewMembership(memberData)}
               className="relative group flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
@@ -281,17 +339,19 @@ const MemberProfile = ({ memberNumber }) => {
               </span>
             </button>
 
-            {/* Check Payment Status */}
-            <button
-              onClick={() => handleCheckPaymentStatus(memberData)}
-              className="relative group flex items-center justify-center p-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors duration-200"
-              title="Payment Status"
-            >
-              <FaMoneyBillWave className="text-xl" />
-              <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
-                Payment Status
-              </span>
-            </button>
+            {/* Pay Due - styled like the other buttons */}
+            {memberData.member_total_due_amount > 0 && (
+              <button
+                onClick={() => setIsPayDueModalOpen(true)}
+                className="relative group flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
+                title="Pay Due"
+              >
+                <FaMoneyBillWave className="text-xl" />
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
+                  Pay Due (₹{memberData.member_total_due_amount})
+                </span>
+              </button>
+            )}
 
             {/* View Schedule */}
             <button
@@ -346,7 +406,7 @@ const MemberProfile = ({ memberNumber }) => {
                       ).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
-                      ${payment.membership_amount.toFixed(2)}
+                      ₹{payment.membership_amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4">
                       <span
@@ -406,6 +466,8 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </div>
       </div>
+
+      {/* Membership Renewal Modal */}
       {IsRenewalOpen && (
         <Dialog
           open={IsRenewalOpen}
@@ -444,6 +506,19 @@ const MemberProfile = ({ memberNumber }) => {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Due Amount */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Due Amount
+                    </label>
+                    <input
+                      type="number"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={memberData?.membership_due_amount || 0}
+                      onChange={handleRenewalDueAmountChange}
+                    />
                   </div>
 
                   <div>
@@ -488,6 +563,94 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </Dialog>
       )}
+
+      {/* Pay Due Modal */}
+      {isPayDueModalOpen && (
+        <Dialog
+          open={isPayDueModalOpen}
+          onClose={() => setIsPayDueModalOpen(false)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6">
+              <Dialog.Title className="text-xl font-semibold mb-4">
+                Pay Due Amount
+              </Dialog.Title>
+              <form onSubmit={handlePayDueSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Total Due Amount
+                    </label>
+                    <p className="text-lg font-semibold text-red-600">
+                      ₹{memberData.member_total_due_amount}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Amount to Pay
+                    </label>
+                    <input
+                      type="number"
+                      max={memberData.member_total_due_amount}
+                      required
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={duePayment.amount}
+                      onChange={(e) =>
+                        setDuePayment({
+                          ...duePayment,
+                          amount: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Payment Mode
+                    </label>
+                    <select
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={duePayment.payment_mode}
+                      onChange={(e) =>
+                        setDuePayment({
+                          ...duePayment,
+                          payment_mode: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
+                    onClick={() => setIsPayDueModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg"
+                  >
+                    Process Payment
+                  </button>
+                </div>
+              </form>
+            </Dialog.Panel>
+          </div>
+        </Dialog>
+      )}
+
+      <SuccessfullPayment show={ShowSuccessfullPayment} />
     </div>
   );
 };

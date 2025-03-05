@@ -17,10 +17,11 @@ import {
 } from 'react-icons/fa';
 import axios from 'axios';
 import { Dialog, DialogPanel } from '@headlessui/react';
-import { motion, AnimatePresence } from 'framer-motion';
+import PropTypes from 'prop-types';
 
 //Components
 import DashboardLayout from '../components/DashboardLayout';
+import SuccessfullPayment from '../components/Animations/SuccessfulPayment';
 
 function Dashboard() {
   const [members, setMembers] = useState([]);
@@ -68,7 +69,7 @@ function Dashboard() {
     membership_payment_mode: '',
     membership_payment_date: new Date().toISOString().split('T')[0],
   });
-  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [showSuccessfullPayment, setShowSuccessfullPayment] = useState(false);
 
   useEffect(() => {
     fetchMembers();
@@ -171,7 +172,7 @@ function Dashboard() {
         {
           number: selectedMember.number,
           amount_paid: parseFloat(duePayment.amount),
-          payment_mode: duePayment.payment_mode
+          payment_mode: duePayment.payment_mode,
         },
         {
           headers: {
@@ -181,22 +182,18 @@ function Dashboard() {
       );
 
       if (response.data) {
-        setShowSuccessAnimation(true);
+        setShowSuccessfullPayment(true);
         // Update the member list and stats
-        await Promise.all([
-          fetchMembers(),
-          fetchDashboardStats()
-        ]);
-        
+        await Promise.all([fetchMembers(), fetchDashboardStats()]);
+
         setIsPayDueModalOpen(false);
         // Close modal after successful payment
         setTimeout(() => {
-          
-          setShowSuccessAnimation(false);
+          setShowSuccessfullPayment(false);
         }, 1500);
       }
     } catch (error) {
-      setShowSuccessAnimation(false);
+      setShowSuccessfullPayment(false);
       console.error('Error processing due payment:', error);
       alert(error.response?.data?.message || 'Error processing payment');
     }
@@ -355,6 +352,10 @@ function Dashboard() {
       </span>
     );
   };
+  
+  PaymentStatusBadge.propTypes = {
+    status: PropTypes.oneOf(['Paid', 'Pending']).isRequired,
+  };
 
   const handleRenewSubmit = async (e) => {
     e.preventDefault();
@@ -362,12 +363,15 @@ function Dashboard() {
       const token = localStorage.getItem('token');
 
       // Ensure amounts are valid numbers
-      const membershipAmount = parseFloat(selectedMember.membership_amount) || 0;
+      const membershipAmount =
+        parseFloat(selectedMember.membership_amount) || 0;
       const dueAmount = parseFloat(selectedMember.membership_due_amount) || 0;
 
       // Validate amounts
       if (isNaN(membershipAmount) || isNaN(dueAmount)) {
-        alert('Invalid amount values. Please check the membership and due amounts.');
+        alert(
+          'Invalid amount values. Please check the membership and due amounts.'
+        );
         return;
       }
 
@@ -379,7 +383,8 @@ function Dashboard() {
         membership_amount: membershipAmount,
         membership_due_amount: dueAmount,
         membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
-        membership_payment_mode: selectedMember.membership_payment_mode || 'Cash',
+        membership_payment_mode:
+          selectedMember.membership_payment_mode || 'Cash',
         membership_payment_date: new Date().toISOString().split('T')[0],
       };
 
@@ -398,16 +403,23 @@ function Dashboard() {
       if (response.data) {
         await fetchMembers(); // Refresh the members list
         setIsRenewModalOpen(false);
+        setShowSuccessfullPayment(true);
+        
+        setTimeout(() => {
+          setShowSuccessfullPayment(false);
+        }, 1500); 
       }
     } catch (err) {
       console.error('Error renewing membership:', err.response?.data || err);
-      alert(err.response?.data?.message || 'Failed to renew membership. Please try again.');
+      alert(
+        err.response?.data?.message ||
+          'Failed to renew membership. Please try again.'
+      );
     } finally {
       fetchMembers();
       fetchDashboardStats();
     }
   };
-
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
@@ -424,6 +436,7 @@ function Dashboard() {
       );
       fetchMembers();
       setIsEditModalOpen(false);
+      
     } catch (err) {
       console.error('Error updating member:', err);
     }
@@ -542,7 +555,9 @@ function Dashboard() {
               <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Total Due Amount</p>
+                    <p className="text-sm font-medium text-gray-600">
+                      Total Due Amount
+                    </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
                       ₹{dashboardStats.totalDue?.toLocaleString() || '0'}
                     </h3>
@@ -1433,53 +1448,13 @@ function Dashboard() {
         </Dialog>
       )}
 
-      <AnimatePresence>
-        {showSuccessAnimation && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed bottom-4 right-4 z-50" // Changed positioning to bottom-right corner
-          >
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0, y: 50 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.5, opacity: 0, y: 50 }}
-              className="bg-white rounded-lg p-4 shadow-lg flex items-center space-x-3"
-            >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200 }}
-                className="bg-green-500 rounded-full p-2" // Reduced padding
-              >
-                <svg
-                  className="w-6 h-6 text-white" // Reduced size
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <motion.path
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.5 }}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-              </motion.div>
-              <p className="text-sm font-medium text-gray-800">
-                Payment Successful!
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      <SuccessfullPayment show={showSuccessfullPayment} />
     </div> /* This is the closing div of your main flex container */
   );
+  
 }
+
+
+
 
 export default Dashboard;
