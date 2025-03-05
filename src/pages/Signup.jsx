@@ -13,6 +13,7 @@ function Signup() {
     number: '',
     password: '',
     confirmPassword: '',
+    user_type:'',
     gymId: '',
   });
 
@@ -20,20 +21,20 @@ function Signup() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchGyms = async () => {
-      try {
-        const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/utils/gyms`
-        );
-        setGyms(response.data);
-      } catch (error) {
-        console.error('Error fetching gyms:', error);
-        setError('Failed to load gyms');
-      }
-    };
-
     fetchGyms();
   }, []);
+  
+  const fetchGyms = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/utils/gyms`
+      );
+      setGyms(response.data);
+    } catch (error) {
+      console.error('Error fetching gyms:', error);
+      setError('Failed to load gyms');
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -50,6 +51,7 @@ function Signup() {
     }
     try {
       const { confirmPassword, ...signupData } = formData;
+      console.log(signupData)
       const token = localStorage.getItem('token'); // Get the admin token
       const response = await axios.post(
         `${import.meta.env.VITE_API_URL}/api/auth/register`,
@@ -149,6 +151,28 @@ function Signup() {
             value={formData.number}
             onChange={handleChange}
           />
+          
+          <select
+            name="user_type"
+            required
+            className="w-full px-4 py-3 rounded-md bg-white/10 text-white placeholder-white/70 focus:outline-none focus:bg-white/20 hover:bg-white/20 transition-all duration-300"
+            placeholder="User Type"
+            value={formData.user_type}
+            onChange={handleChange}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '5px',
+              color: 'white',
+              // Remove default select styling
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              appearance: 'none',
+            }}
+          >
+            <option value="Admin" className="bg-[#1a1f2b] text-white">Admin</option>
+            <option value="User" className="bg-[#1a1f2b] text-white">Trainer</option>
+            <option value="Receptionist" className="bg-[#1a1f2b] text-white">Admin</option>
+          </select>
 
           <input
             name="password"
