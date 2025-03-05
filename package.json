@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
+    "preview": "vite preview --port 5052",
     "test": "vitest",
     "format": "prettier --write \"src/**/*.{js,jsx,ts,tsx}\""
   },
@@ -17,6 +17,7 @@
     "@tailwindcss/vite": "^4.0.9",
     "axios": "^1.8.1",
     "dotenv": "^16.4.7",
+    "framer-motion": "^12.4.10",
     "prop-types": "^15.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect } from 'react';
 import {
   FaUsers,
   FaUser,
@@ -13,12 +13,14 @@ import {
   FaCalendar,
   FaUserPlus,
   FaExclamationTriangle,
-} from "react-icons/fa";
-import axios from "axios";
-import { Dialog, DialogPanel } from "@headlessui/react";
+  FaExclamationCircle,
+} from 'react-icons/fa';
+import axios from 'axios';
+import { Dialog, DialogPanel } from '@headlessui/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 //Components
-import DashboardLayout from "../components/DashboardLayout";
+import DashboardLayout from '../components/DashboardLayout';
 
 function Dashboard() {
   const [members, setMembers] = useState([]);
@@ -26,22 +28,24 @@ function Dashboard() {
   const [error, setError] = useState(null);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [newMember, setNewMember] = useState({
-    name: "",
-    number: "",
-    gender: "",
-    age: "",
-    email: "",
-    membership_type: "Monthly",
-    membership_amount: "",
-    membership_payment_status: "Paid",
-    membership_payment_mode: "Cash",
-    membership_payment_date: new Date().toISOString().split("T")[0],
+    name: '',
+    number: '',
+    gender: '',
+    age: '',
+    email: '',
+    membership_type: '',
+    membership_amount: '',
+    membership_due_amount: '0', // Add this line
+    membership_payment_status: 'Paid',
+    membership_payment_mode: 'Cash',
+    membership_payment_date: new Date().toISOString().split('T')[0],
   });
   const [dashboardStats, setDashboardStats] = useState({
     totalMembers: 0,
     newMembers: 0,
     expiringMemberships: 0,
     totalRevenue: 0,
+    totalDue: 0,
     membershipRenewalRate: 0,
     paymentSummary: {},
     paymentMethodsBreakdown: [],
@@ -50,14 +54,21 @@ function Dashboard() {
   const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [isPayDueModalOpen, setIsPayDueModalOpen] = useState(false);
+  const [duePayment, setDuePayment] = useState({
+    amount: '',
+    payment_mode: 'Cash',
+  });
 
   const [newRenewal, setNewRenewal] = useState({
-    number: "",
-    membership_type: "",
-    membership_payment_status: "",
-    membership_payment_mode: "",
-    membership_payment_date: new Date().toISOString().split("T")[0],
+    number: '',
+    membership_type: '',
+    membership_due_amount: '',
+    membership_payment_status: '',
+    membership_payment_mode: '',
+    membership_payment_date: new Date().toISOString().split('T')[0],
   });
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
   useEffect(() => {
     fetchMembers();
@@ -67,21 +78,21 @@ function Dashboard() {
 
   const fetchMembers = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const response = await axios.get(
-        "http://localhost:5050/api/member/members",
+        'http://localhost:5050/api/member/members',
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       setMembers(response.data.members);
       setLoading(false);
     } catch (err) {
-      setError("Failed to fetch members");
+      setError('Failed to fetch members');
       setLoading(false);
-      console.error("Error fetching members:", err);
+      console.error('Error fetching members:', err);
     }
   };
 
@@ -89,7 +100,12 @@ function Dashboard() {
     setIsAddMemberOpen(true);
   };
   const handleRenewMembership = async (member) => {
-    setSelectedMember(member);
+    setSelectedMember({
+      ...member,
+      membership_due_amount: member.membership_due_amount || 0,
+      membership_payment_mode: member.membership_payment_mode || 'Cash',
+      membership_payment_status: 'Paid',
+    });
     setIsRenewModalOpen(true);
 
     setNewRenewal({
@@ -97,12 +113,12 @@ function Dashboard() {
       membership_type: member.membership_type,
       membership_payment_status: member.membership_payment_status,
       membership_payment_mode: member.membership_payment_mode,
-      membership_payment_date: new Date().toISOString().split("T")[0],
+      membership_payment_date: new Date().toISOString().split('T')[0],
     });
     setIsRenewModalOpen(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       await axios.post(
         `http://localhost:5050/api/memberships/renew`,
         newRenewal,
@@ -110,11 +126,79 @@ function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       fetchMembers(); // Refresh the list
     } catch (err) {
-      console.error("Error renewing membership:", err);
+      console.error('Error renewing membership:', err);
+    }
+  };
+
+  const handlePayDue = (member) => {
+    setSelectedMember(member);
+    setDuePayment({
+      amount: '',
+      payment_mode: 'Cash',
+    });
+    setIsPayDueModalOpen(true);
+  };
+
+  const handleDueAmountChange = (e) => {
+    const dueAmount = parseFloat(e.target.value) || 0;
+    setNewMember({
+      ...newMember,
+      membership_due_amount: e.target.value,
+      membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
+    });
+  };
+
+  const handleRenewalDueAmountChange = (e) => {
+    const dueAmount = parseFloat(e.target.value) || 0;
+    setSelectedMember({
+      ...selectedMember,
+      membership_due_amount: e.target.value,
+      membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
+    });
+  };
+
+  const handlePayDueSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+
+      const response = await axios.post(
+        'http://localhost:5050/api/memberships/pay-due',
+        {
+          number: selectedMember.number,
+          amount_paid: parseFloat(duePayment.amount),
+          payment_mode: duePayment.payment_mode
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.data) {
+        setShowSuccessAnimation(true);
+        // Update the member list and stats
+        await Promise.all([
+          fetchMembers(),
+          fetchDashboardStats()
+        ]);
+        
+        setIsPayDueModalOpen(false);
+        // Close modal after successful payment
+        setTimeout(() => {
+          
+          setShowSuccessAnimation(false);
+        }, 1500);
+      }
+    } catch (error) {
+      setShowSuccessAnimation(false);
+      console.error('Error processing due payment:', error);
+      alert(error.response?.data?.message || 'Error processing payment');
     }
   };
 
@@ -123,7 +207,7 @@ function Dashboard() {
     setIsEditModalOpen(true);
 
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       await axios.put(
         `http://localhost:5050/api/member/members/${member.id}`,
         member,
@@ -131,17 +215,17 @@ function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       fetchMembers(); // Refresh the list
     } catch (err) {
-      console.error("Error editing member:", err);
+      console.error('Error editing member:', err);
     }
   };
 
   const handleDeleteMember = async (number) => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       await axios.delete(`http://localhost:5050/api/member/members/${number}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -149,18 +233,24 @@ function Dashboard() {
       });
       fetchMembers(); // Refresh the list
     } catch (err) {
-      console.error("Error deleting member:", err);
+      console.error('Error deleting member:', err);
     }
   };
 
   const handleSubmitNewMember = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
-      console.log(
-        `New member ${newMember.name} addedthis details are ${newMember.name}, ${newMember.number}, ${newMember.gender}, ${newMember.age}, ${newMember.email}, ${newMember.membership_type}, ${newMember.membership_amount}, ${newMember.membership_payment_status}, ${newMember.membership_payment_mode}, ${newMember.membership_payment_date}`,
-      );
-      await axios.post("http://localhost:5050/api/member/signup", newMember, {
+      const token = localStorage.getItem('token');
+
+      if (newMember.membership_due_amount < 0) {
+        alert('Membership due amount is required and cannot be negative');
+      }
+
+      if (!newMember.membership_due_amount) {
+        newMember.membership_due_amount = 0;
+      }
+
+      await axios.post('http://localhost:5050/api/member/signup', newMember, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -169,44 +259,44 @@ function Dashboard() {
       fetchMembers(); // Refresh the list
       setNewMember({
         // Reset form
-        name: "",
-        number: "",
-        gender: "",
-        age: "",
-        email: "",
-        membership_type: "",
-        membership_amount: "",
-        membership_payment_status: "Paid",
-        membership_payment_mode: "Cash",
-        membership_payment_date: new Date().toISOString().split("T")[0],
+        name: '',
+        number: '',
+        gender: '',
+        age: '',
+        email: '',
+        membership_type: '',
+        membership_amount: '',
+        membership_payment_status: 'Paid',
+        membership_payment_mode: 'Cash',
+        membership_payment_date: new Date().toISOString().split('T')[0],
       });
     } catch (err) {
-      console.error("Error adding new member:", err);
+      console.error('Error adding new member:', err);
     }
   };
 
   const fetchDashboardStats = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
 
       // Fetch membership stats
       const membershipStats = await axios.get(
-        "http://localhost:5050/api/reports/membership",
+        'http://localhost:5050/api/reports/membership',
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
       // Fetch financial stats
       const financialStats = await axios.get(
-        "http://localhost:5050/api/reports/financial",
+        'http://localhost:5050/api/reports/financial',
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
 
       setDashboardStats({
@@ -215,64 +305,114 @@ function Dashboard() {
         expiringMemberships:
           membershipStats.data.expiringMemberships?.length || 0,
         totalRevenue: financialStats.data.totalRevenue || 0,
+        totalDue: financialStats.data.totalDue || 0,
+        membersWithDue: financialStats.data.membersWithDue || 0,
         membershipRenewalRate: membershipStats.data.membershipRenewalRate || 0,
         paymentSummary: financialStats.data.paymentSummary || {},
         paymentMethodsBreakdown:
           financialStats.data.paymentMethodsBreakdown || [],
       });
     } catch (err) {
-      console.error("Error fetching dashboard stats:", err);
-      setError("Failed to fetch dashboard statistics");
+      console.error('Error fetching dashboard stats:', err);
+      setError('Failed to fetch dashboard statistics');
     }
   };
 
   const fetchMembershipPlans = async () => {
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       setAvailablePlans(response.data);
     } catch (err) {
-      console.error("Error fetching membership plans:", err);
+      console.error('Error fetching membership plans:', err);
     }
+  };
+
+  const PaymentStatusBadge = ({ status }) => {
+    const getStatusColor = () => {
+      switch (status) {
+        case 'Paid':
+          return 'bg-green-100 text-green-800';
+        case 'Pending':
+          return 'bg-yellow-100 text-yellow-800';
+        default:
+          return 'bg-gray-100 text-gray-800';
+      }
+    };
+
+    return (
+      <span
+        className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor()}`}
+      >
+        {status}
+      </span>
+    );
   };
 
   const handleRenewSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/memberships/renew`,
-        {
-          number: selectedMember.number,
-          membership_type: selectedMember.membership_type,
-          membership_amount: selectedMember.membership_amount,
-          membership_payment_status: "Paid",
-          membership_payment_mode: selectedMember.membership_payment_mode,
-        },
+      const token = localStorage.getItem('token');
+
+      // Ensure amounts are valid numbers
+      const membershipAmount = parseFloat(selectedMember.membership_amount) || 0;
+      const dueAmount = parseFloat(selectedMember.membership_due_amount) || 0;
+
+      // Validate amounts
+      if (isNaN(membershipAmount) || isNaN(dueAmount)) {
+        alert('Invalid amount values. Please check the membership and due amounts.');
+        return;
+      }
+
+      // Create renewal payload with all required fields
+      const renewalData = {
+        number: selectedMember.number,
+        name: selectedMember.name, // Add name if required by your API
+        membership_type: selectedMember.membership_type,
+        membership_amount: membershipAmount,
+        membership_due_amount: dueAmount,
+        membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
+        membership_payment_mode: selectedMember.membership_payment_mode || 'Cash',
+        membership_payment_date: new Date().toISOString().split('T')[0],
+      };
+
+      console.log('Renewal Data:', renewalData); // Use object logging for better debugging
+
+      const response = await axios.post(
+        'http://localhost:5050/api/memberships/renew',
+        renewalData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
-      fetchMembers();
-      setIsRenewModalOpen(false);
+
+      if (response.data) {
+        await fetchMembers(); // Refresh the members list
+        setIsRenewModalOpen(false);
+      }
     } catch (err) {
-      console.error("Error renewing membership:", err);
+      console.error('Error renewing membership:', err.response?.data || err);
+      alert(err.response?.data?.message || 'Failed to renew membership. Please try again.');
+    } finally {
+      fetchMembers();
+      fetchDashboardStats();
     }
   };
+
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       await axios.put(
         `${import.meta.env.VITE_API_URL}/api/member/members/${selectedMember.number}`,
         selectedMember,
@@ -280,12 +420,12 @@ function Dashboard() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        },
+        }
       );
       fetchMembers();
       setIsEditModalOpen(false);
     } catch (err) {
-      console.error("Error updating member:", err);
+      console.error('Error updating member:', err);
     }
   };
 
@@ -397,8 +537,25 @@ function Dashboard() {
                   {dashboardStats.paymentSummary?.totalPayments || 0} payments
                 </p>
               </div>
-            </div>
 
+              {/* Due Amount Widget */}
+              <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Due Amount</p>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-2">
+                      ₹{dashboardStats.totalDue?.toLocaleString() || '0'}
+                    </h3>
+                  </div>
+                  <div className="bg-red-100 p-3 rounded-full">
+                    <FaExclamationCircle className="w-6 h-6 text-red-600" />
+                  </div>
+                </div>
+                <p className="text-sm text-gray-500 mt-2">
+                  {dashboardStats.membersWithDue || 0} members with dues
+                </p>
+              </div>
+            </div>
             {/* Payment Methods Breakdown */}
             <div className="bg-white rounded-lg shadow p-6 mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">
@@ -471,9 +628,9 @@ function Dashboard() {
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              member.membership_status === "Active"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-red-100 text-red-800"
+                              member.membership_status === 'Active'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-red-100 text-red-800'
                             }`}
                           >
                             {member.membership_status}
@@ -481,10 +638,18 @@ function Dashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(
-                            member.membership_end_date,
+                            member.membership_end_date
                           ).toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          {member.member_total_due_amount > 0 && (
+                            <button
+                              onClick={() => handlePayDue(member)}
+                              className="text-red-600 hover:text-red-900 mr-3"
+                            >
+                              Pay Due (₹{member.member_total_due_amount})
+                            </button>
+                          )}
                           <button
                             onClick={() => handleRenewMembership(member)}
                             className="text-blue-600 hover:text-blue-900 mr-3"
@@ -655,17 +820,17 @@ function Dashboard() {
                         value={newMember.membership_type}
                         onChange={(e) => {
                           const selectedPlan = availablePlans.find(
-                            (plan) => plan.name === e.target.value,
+                            (plan) => plan.name === e.target.value
                           );
                           setNewMember({
                             ...newMember,
                             membership_type: e.target.value,
                             membership_amount: selectedPlan
                               ? selectedPlan.price
-                              : "",
+                              : '',
                             membership_duration: selectedPlan
                               ? selectedPlan.duration
-                              : "",
+                              : '',
                           });
                         }}
                       >
@@ -695,6 +860,23 @@ function Dashboard() {
                       />
                     </div>
 
+                    {/* Due Amount */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <span className="flex items-center">
+                          <FaRupeeSign className="mr-2 text-gray-400" />
+                          Due Amount
+                        </span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-2 transition-all duration-200"
+                        value={newMember.membership_due_amount}
+                        onChange={handleDueAmountChange}
+                      />
+                    </div>
+
                     {/* Payment Status */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -703,20 +885,14 @@ function Dashboard() {
                           Payment Status
                         </span>
                       </label>
-                      <select
-                        required
-                        className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 focus:ring-2 transition-all duration-200"
-                        value={newMember.membership_payment_status}
-                        onChange={(e) =>
-                          setNewMember({
-                            ...newMember,
-                            membership_payment_status: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="Paid">Paid</option>
-                        <option value="Pending">Pending</option>
-                      </select>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <PaymentStatusBadge
+                          status={newMember.membership_payment_status}
+                        />
+                        <span className="text-sm text-gray-500">
+                          {newMember.membership_due_amount > 0}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Payment Mode */}
@@ -813,7 +989,7 @@ function Dashboard() {
                       value={selectedMember?.membership_type}
                       onChange={(e) => {
                         const selectedPlan = availablePlans.find(
-                          (plan) => plan.name === e.target.value,
+                          (plan) => plan.name === e.target.value
                         );
                         setSelectedMember({
                           ...selectedMember,
@@ -828,6 +1004,33 @@ function Dashboard() {
                         </option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Due Amount */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Due Amount
+                    </label>
+                    <input
+                      type="number"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={selectedMember?.membership_due_amount || 0}
+                      onChange={handleRenewalDueAmountChange}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Payment Status
+                    </label>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <PaymentStatusBadge
+                        status={selectedMember?.membership_payment_status}
+                      />
+                      <span className="text-sm text-gray-500">
+                        {selectedMember?.membership_due_amount > 0}
+                      </span>
+                    </div>
                   </div>
 
                   <div>
@@ -907,7 +1110,7 @@ function Dashboard() {
                         type="text"
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.name || ""}
+                        value={selectedMember?.name || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -929,7 +1132,7 @@ function Dashboard() {
                         type="tel"
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.number || ""}
+                        value={selectedMember?.number || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -950,7 +1153,7 @@ function Dashboard() {
                       <select
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.gender || ""}
+                        value={selectedMember?.gender || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -976,7 +1179,7 @@ function Dashboard() {
                         type="number"
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.age || ""}
+                        value={selectedMember?.age || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -997,7 +1200,7 @@ function Dashboard() {
                       <input
                         type="email"
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.email || ""}
+                        value={selectedMember?.email || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -1025,10 +1228,10 @@ function Dashboard() {
                       <select
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.membership_type || ""}
+                        value={selectedMember?.membership_type || ''}
                         onChange={(e) => {
                           const selectedPlan = availablePlans.find(
-                            (plan) => plan.name === e.target.value,
+                            (plan) => plan.name === e.target.value
                           );
                           setSelectedMember({
                             ...selectedMember,
@@ -1057,7 +1260,7 @@ function Dashboard() {
                       <select
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.membership_status || ""}
+                        value={selectedMember?.membership_status || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -1082,7 +1285,7 @@ function Dashboard() {
                       <select
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.membership_payment_status || ""}
+                        value={selectedMember?.membership_payment_status || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -1106,7 +1309,7 @@ function Dashboard() {
                       <select
                         required
                         className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        value={selectedMember?.membership_payment_mode || ""}
+                        value={selectedMember?.membership_payment_mode || ''}
                         onChange={(e) =>
                           setSelectedMember({
                             ...selectedMember,
@@ -1144,7 +1347,138 @@ function Dashboard() {
           </div>
         </Dialog>
       )}
-    </div>
+
+      {isPayDueModalOpen && (
+        <Dialog
+          open={isPayDueModalOpen}
+          onClose={() => setIsPayDueModalOpen(false)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
+              <Dialog.Title className="text-xl font-semibold mb-4">
+                Pay Due Amount
+              </Dialog.Title>
+              <form onSubmit={handlePayDueSubmit}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Total Due Amount
+                    </label>
+                    <p className="text-lg font-semibold text-red-600">
+                      ₹{selectedMember?.member_total_due_amount}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Amount to Pay
+                    </label>
+                    <input
+                      type="number"
+                      max={selectedMember?.member_total_due_amount}
+                      required
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={duePayment.amount}
+                      onChange={(e) =>
+                        setDuePayment({
+                          ...duePayment,
+                          amount: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Payment Mode
+                    </label>
+                    <select
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
+                      value={duePayment.payment_mode}
+                      onChange={(e) =>
+                        setDuePayment({
+                          ...duePayment,
+                          payment_mode: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Card">Card</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg"
+                    onClick={() => setIsPayDueModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg"
+                  >
+                    Process Payment
+                  </button>
+                </div>
+              </form>
+            </DialogPanel>
+          </div>
+        </Dialog>
+      )}
+
+      <AnimatePresence>
+        {showSuccessAnimation && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed bottom-4 right-4 z-50" // Changed positioning to bottom-right corner
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0, y: 50 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.5, opacity: 0, y: 50 }}
+              className="bg-white rounded-lg p-4 shadow-lg flex items-center space-x-3"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="bg-green-500 rounded-full p-2" // Reduced padding
+              >
+                <svg
+                  className="w-6 h-6 text-white" // Reduced size
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.5 }}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+              </motion.div>
+              <p className="text-sm font-medium text-gray-800">
+                Payment Successful!
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </div> /* This is the closing div of your main flex container */
   );
 }
 

@@ -1,20 +1,19 @@
-import axios from 'axios';
+import axios from "axios";
 
-const BASE_URL = 'http://localhost:5050/api';
+const BASE_URL = "http://localhost:5050/api";
 
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   withCredentials: true,
 });
 
-
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;  // Changed from token to Authorization
+    config.headers.Authorization = `Bearer ${token}`; // Changed from token to Authorization
   }
   return config;
 });
@@ -23,15 +22,15 @@ api.interceptors.request.use((config) => {
 export const memberService = {
   // Get all members
   getAllMembers: async () => {
-    const response = await api.get('/member/members');
-    console.log(`Members: ${response.data}`)
+    const response = await api.get("/member/members");
+    console.log(`Members: ${response.data}`);
     return response.data.members || response.data;
   },
 
   // Get member by number
   getMemberById: async (memberNumber) => {
     const response = await api.get(`/member/members/${memberNumber}`);
-    console.log(`Member: ${response.data}`)
+    console.log(`Member: ${response.data}`);
     return response.data;
   },
 
@@ -39,10 +38,10 @@ export const memberService = {
   getMemberPayments: async (memberNumber) => {
     try {
       const response = await api.get(`/memberships/renew/${memberNumber}`);
-      console.log(`Payments: ${response.data}`)
+      console.log(`Payments: ${response.data}`);
       return response.data || [];
     } catch (error) {
-      console.error('Error fetching member payments:', error);
+      console.error("Error fetching member payments:", error);
       return []; // Return empty array if no payments found
     }
   },
@@ -51,13 +50,34 @@ export const memberService = {
   getMemberAttendance: async (memberNumber) => {
     try {
       const response = await api.get(`/attendance/${memberNumber}`);
-      console.log(`Attendance: ${response.data}`)
+      console.log(`Attendance: ${response.data}`);
       return response.data || [];
     } catch (error) {
-      console.error('Error fetching member attendance:', error);
+      console.error("Error fetching member attendance:", error);
       return []; // Return empty array if no attendance records found
     }
-  }
+  },
+
+  renewMembership: async (memberNumber) => {
+    const response = await api.post(`/memberships/renew`, {
+      number: memberNumber,
+    });
+    return response.data;
+  },
+
+  recordAttendance: async (memberNumber) => {
+    const response = await api.post(`/attendance/checkin`, {
+      number: memberNumber,
+    });
+    return response.data;
+  },
+
+  checkOutMember: async (memberNumber) => {
+    const response = await api.post(`/attendance/checkout`, {
+      number: memberNumber,
+    });
+    return response.data;
+  },
 };
 
 export default api;
