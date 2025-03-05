@@ -170,8 +170,8 @@ function Signup() {
             }}
           >
             <option value="Admin" className="bg-[#1a1f2b] text-white">Admin</option>
-            <option value="User" className="bg-[#1a1f2b] text-white">Trainer</option>
-            <option value="Receptionist" className="bg-[#1a1f2b] text-white">Admin</option>
+            <option value="User" className="bg-[#1a1f2b] text-white">User</option>
+            <option value="Receptionist" className="bg-[#1a1f2b] text-white">Receptionist</option>
           </select>
 
           <input

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import ProtectedRoute from './services/ProtectedRoute';
+import AuthContext from './context/AuthContext';
 
 // Routes
 import Login from './pages/Login';
@@ -11,8 +12,8 @@ import Signup from './pages/Signup';
 import Reports from './pages/Reports';
 import MembershipPlans from './pages/MembershipPlans';
 import Member from './pages/Member';
+import UnauthorisedPage from './pages/Unauthorised';
 
-// App Component
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,7 +30,7 @@ function App() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setUser(response.data);
-        console.log(`user data ${response.data}`)
+        console.log('user data', response.data);
       } catch (error) {
         console.error('Error fetching user:', error);
       } finally {
@@ -38,26 +39,29 @@ function App() {
     };
 
     fetchUser();
-  }, []);
+  }, [location.pathname]);
 
-  if (loading) return <div>Loading...</div>; // Show a loader while fetching user data
+  if (loading) return <div>Loading...</div>;
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/signup" element={<Signup />} />
+    <AuthContext.Provider value={{ user, setUser }}>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/unauthorized" element={<UnauthorisedPage />} />
 
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute role={user?.user_type} allowedRoles={['Admin']} />}>
-          <Route path="/dashboard/reports" element={<Reports />} />
-          <Route path="/dashboard/membership-plans" element={<MembershipPlans />} />
-          <Route path="/dashboard/members" element={<Member />} />
-        </Route>
-      </Routes>
-    </Router>
+          {/* Protected Routes */}
+          <Route element={<ProtectedRoute role={user?.user_type} allowedRoles={['Admin']} loading={loading} />}>
+            <Route path="/dashboard/reports" element={<Reports />} />
+            <Route path="/dashboard/membership-plans" element={<MembershipPlans />} />
+            <Route path="/dashboard/members" element={<Member />} />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthContext.Provider>
   );
 }
 
