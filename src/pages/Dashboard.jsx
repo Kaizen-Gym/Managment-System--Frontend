@@ -70,12 +70,33 @@ function Dashboard() {
     membership_payment_date: new Date().toISOString().split('T')[0],
   });
   const [showSuccessfullPayment, setShowSuccessfullPayment] = useState(false);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     fetchMembers();
     fetchDashboardStats();
     fetchMembershipPlans();
+    fetchUser();
   }, []);
+  
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        'http://localhost:5050/api/auth/profile',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setUser(response.data);
+      console.log(response.data)
+    } catch (err) {
+      setError('Failed to fetch user');
+      console.error('Error fetching user:', err);
+    }
+  };
 
   const fetchMembers = async () => {
     try {
@@ -474,13 +495,11 @@ function Dashboard() {
 
             {/* Dashboard Widgets */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              {/* Total Members Widget */}
+              {/* Total Members Widget - Visible to all */}
               <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Total Members
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">Total Members</p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
                       {dashboardStats.totalMembers}
                     </h3>
@@ -490,18 +509,15 @@ function Dashboard() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  {dashboardStats.membershipRenewalRate.toFixed(1)}% renewal
-                  rate
+                  {dashboardStats.membershipRenewalRate.toFixed(1)}% renewal rate
                 </p>
               </div>
-
-              {/* New Members Widget */}
+            
+              {/* New Members Widget - Visible to all */}
               <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      New Members
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">New Members</p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
                       {dashboardStats.newMembers}
                     </h3>
@@ -512,14 +528,12 @@ function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-500 mt-2">This month</p>
               </div>
-
-              {/* Expiring Memberships Widget */}
+            
+              {/* Expiring Memberships Widget - Visible to all */}
               <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Expiring Soon
-                    </p>
+                    <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
                       {dashboardStats.expiringMemberships}
                     </h3>
@@ -530,71 +544,69 @@ function Dashboard() {
                 </div>
                 <p className="text-sm text-gray-500 mt-2">Next 30 days</p>
               </div>
-
-              {/* Revenue Widget */}
-              <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Total Revenue
-                    </p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                      ₹{dashboardStats.totalRevenue.toLocaleString()}
-                    </h3>
-                  </div>
-                  <div className="bg-purple-100 p-3 rounded-full">
-                    <FaRupeeSign className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  {dashboardStats.paymentSummary?.totalPayments || 0} payments
-                </p>
-              </div>
-
-              {/* Due Amount Widget */}
-              <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      Total Due Amount
-                    </p>
-                    <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                      ₹{dashboardStats.totalDue?.toLocaleString() || '0'}
-                    </h3>
-                  </div>
-                  <div className="bg-red-100 p-3 rounded-full">
-                    <FaExclamationCircle className="w-6 h-6 text-red-600" />
-                  </div>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  {dashboardStats.membersWithDue || 0} members with dues
-                </p>
-              </div>
-            </div>
-            {/* Payment Methods Breakdown */}
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">
-                Payment Methods
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {dashboardStats.paymentMethodsBreakdown?.map((method) => (
-                  <div
-                    key={method._id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                  >
+            
+              {/* Revenue Widget - Hide for Receptionists */}
+              {user.user_type !== 'Receptionist' && (
+                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium">{method._id}</p>
-                      <p className="text-sm text-gray-500">
-                        {method.count} payments
-                      </p>
+                      <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
+                        ₹{dashboardStats.totalRevenue.toLocaleString()}
+                      </h3>
                     </div>
-                    <p className="font-bold">
-                      ₹{method.total.toLocaleString()}
-                    </p>
+                    <div className="bg-purple-100 p-3 rounded-full">
+                      <FaRupeeSign className="w-6 h-6 text-purple-600" />
+                    </div>
                   </div>
-                ))}
-              </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {dashboardStats.paymentSummary?.totalPayments || 0} payments
+                  </p>
+                </div>
+              )}
+            
+              {/* Due Amount Widget - Hide for Receptionists */}
+              {user.user_type !== 'Receptionist' && (
+                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600">Total Due Amount</p>
+                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
+                        ₹{dashboardStats.totalDue?.toLocaleString() || '0'}
+                      </h3>
+                    </div>
+                    <div className="bg-red-100 p-3 rounded-full">
+                      <FaExclamationCircle className="w-6 h-6 text-red-600" />
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {dashboardStats.membersWithDue || 0} members with dues
+                  </p>
+                </div>
+              )}
             </div>
+            
+            {/* Payment Methods Breakdown - Hide for Receptionists */}
+            {user.user_type !== 'Receptionist' && (
+              <div className="bg-white rounded-lg shadow p-6 mb-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Methods</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {dashboardStats.paymentMethodsBreakdown?.map((method) => (
+                    <div
+                      key={method._id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
+                      <div>
+                        <p className="font-medium">{method._id}</p>
+                        <p className="text-sm text-gray-500">{method.count} payments</p>
+                      </div>
+                      <p className="font-bold">₹{method.total.toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
 
             {/* Member List */}
             <div className="bg-white shadow rounded-lg">

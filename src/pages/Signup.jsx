@@ -13,7 +13,7 @@ function Signup() {
     number: '',
     password: '',
     confirmPassword: '',
-    gymId: ''
+    gymId: '',
   });
 
   const [gyms, setGyms] = useState([]);
@@ -22,7 +22,9 @@ function Signup() {
   useEffect(() => {
     const fetchGyms = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/utils/gyms`);
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/utils/gyms`
+        );
         setGyms(response.data);
       } catch (error) {
         console.error('Error fetching gyms:', error);
@@ -36,7 +38,7 @@ function Signup() {
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -48,12 +50,19 @@ function Signup() {
     }
     try {
       const { confirmPassword, ...signupData } = formData;
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, signupData);
+      const token = localStorage.getItem('token'); // Get the admin token
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
+        signupData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (response.data) {
         navigate('/login');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during signup');
+      setError(
+        err.response?.data?.message || 'An error occurred during signup'
+      );
     }
   };
 
@@ -66,7 +75,9 @@ function Signup() {
         </h2>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && <div className="text-red-500 text-center text-sm">{error}</div>}
+          {error && (
+            <div className="text-red-500 text-center text-sm">{error}</div>
+          )}
 
           <input
             name="name"
@@ -94,10 +105,18 @@ function Signup() {
               appearance: 'none',
             }}
           >
-            <option value="" className="bg-[#1a1f2b] text-white">Select Gender</option>
-            <option value="Male" className="bg-[#1a1f2b] text-white">Male</option>
-            <option value="Female" className="bg-[#1a1f2b] text-white">Female</option>
-            <option value="Other" className="bg-[#1a1f2b] text-white">Other</option>
+            <option value="" className="bg-[#1a1f2b] text-white">
+              Select Gender
+            </option>
+            <option value="Male" className="bg-[#1a1f2b] text-white">
+              Male
+            </option>
+            <option value="Female" className="bg-[#1a1f2b] text-white">
+              Female
+            </option>
+            <option value="Other" className="bg-[#1a1f2b] text-white">
+              Other
+            </option>
           </select>
 
           <input
@@ -167,9 +186,15 @@ function Signup() {
               appearance: 'none',
             }}
           >
-            <option value="" className="bg-[#1a1f2b] text-white">Select Gym</option>
-            {gyms.map(gym => (
-              <option key={gym._id} value={gym._id} className="bg-[#1a1f2b] text-white">
+            <option value="" className="bg-[#1a1f2b] text-white">
+              Select Gym
+            </option>
+            {gyms.map((gym) => (
+              <option
+                key={gym._id}
+                value={gym._id}
+                className="bg-[#1a1f2b] text-white"
+              >
                 {gym.name}
               </option>
             ))}

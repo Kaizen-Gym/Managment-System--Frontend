@@ -1,5 +1,6 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
+import PropTypes from 'prop-types';
 
 const SuccessAnimation = ({ show }) => {
   return (
@@ -48,6 +49,9 @@ const SuccessAnimation = ({ show }) => {
       )}
     </AnimatePresence>
   );
+};
+SuccessAnimation.propTypes = {
+  show: PropTypes.bool.isRequired,
 };
 
 export default SuccessAnimation;
