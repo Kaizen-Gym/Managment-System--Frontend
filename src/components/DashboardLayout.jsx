@@ -11,8 +11,10 @@ import {
   FaTimes,
   FaCreditCard,
   FaBars,
+  FaUserShield,
 } from "react-icons/fa";
 import axios from "axios";
+import usePermissions from "../hooks/usePermissions";
 
 import MemberProfile from "./MembersSection/MemberProfile";
 
@@ -27,6 +29,7 @@ const DashboardLayout = ({ children }) => {
   const [selectedMemberNumber, setSelectedMemberNumber] = useState(null);
 
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
 
   useEffect(() => {
     fetchMembers();
@@ -79,26 +82,37 @@ const DashboardLayout = ({ children }) => {
       icon: <FaHome className="w-5 h-5" />,
       title: "Dashboard",
       path: "/dashboard",
+      permission: "view_dashboard",
     },
     {
       icon: <FaUsers className="w-5 h-5" />,
       title: "Members",
       path: "/dashboard/members",
+      permission: "view_members",
     },
     {
       icon: <FaChartBar className="w-5 h-5" />,
       title: "Reports",
       path: "/dashboard/reports",
+      permission: "view_reports",
     },
     {
       icon: <FaCreditCard className="w-5 h-5" />,
       title: "Membership-Plans",
       path: "/dashboard/membership-plans",
+      permission: "view_membership_plans",
     },
     {
       icon: <FaCog className="w-5 h-5" />,
       title: "Settings",
       path: "/dashboard/settings",
+      permission: "view_settings",
+    },
+    {
+      icon: <FaUserShield className="w-5 h-5" />,
+      title: "User Management",
+      path: "/dashboard/user-management",
+      permission: "manage_users",
     },
   ];
 
@@ -126,14 +140,16 @@ const DashboardLayout = ({ children }) => {
         {/* Navigation Items */}
         <nav className="mt-4">
           {menuItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.path}
-              className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-            >
-              {item.icon}
-              <span className="ml-3">{item.title}</span>
-            </Link>
+            hasPermission(item.permission) && (
+              <Link
+                key={index}
+                to={item.path}
+                className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                {item.icon}
+                <span className="ml-3">{item.title}</span>
+              </Link>
+            )
           ))}
         </nav>
       </div>

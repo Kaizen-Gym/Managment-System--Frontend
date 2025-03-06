@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5050/api";
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -76,6 +76,74 @@ export const memberService = {
     const response = await api.post(`/attendance/checkout`, {
       number: memberNumber,
     });
+    return response.data;
+  },
+};
+
+export const userService = {
+  // Fetch all users
+  getAllUsers: async () => {
+    const response = await api.get("/users");
+    return response.data.users || response.data;
+  },
+
+  // Fetch user by ID
+  getUserById: async (userId) => {
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
+  },
+
+  // Create a new user
+  createUser: async (userData) => {
+    const response = await api.post("/users", userData);
+    return response.data;
+  },
+
+  // Update user by ID
+  updateUser: async (userId, userData) => {
+    const response = await api.put(`/users/${userId}`, userData);
+    return response.data;
+  },
+
+  // Delete user by ID
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/users/${userId}`);
+    return response.data;
+  },
+
+  // Fetch all roles
+  getAllRoles: async () => {
+    const response = await api.get("/roles");
+    return response.data.roles || response.data;
+  },
+
+  // Create a new role
+  createRole: async (roleData) => {
+    const response = await api.post("/roles", roleData);
+    return response.data;
+  },
+
+  // Update role by ID
+  updateRole: async (roleId, roleData) => {
+    const response = await api.put(`/roles/${roleId}`, roleData);
+    return response.data;
+  },
+
+  // Delete role by ID
+  deleteRole: async (roleId) => {
+    const response = await api.delete(`/roles/${roleId}`);
+    return response.data;
+  },
+
+  // Fetch permissions for a role
+  getRolePermissions: async (roleId) => {
+    const response = await api.get(`/roles/${roleId}/permissions`);
+    return response.data.permissions || response.data;
+  },
+
+  // Update permissions for a role
+  updateRolePermissions: async (roleId, permissions) => {
+    const response = await api.put(`/roles/${roleId}/permissions`, { permissions });
     return response.data;
   },
 };

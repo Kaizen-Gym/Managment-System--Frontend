@@ -8,6 +8,7 @@ import Signup from './pages/Signup';
 import Reports from './pages/Reports';
 import MembershipPlans from './pages/MembershipPlans';
 import Member from './pages/Member';
+import UserManagement from './pages/UserManagement'; // Import the new UserManagement page
 
 function App() {
   return (
@@ -20,11 +21,10 @@ function App() {
         <Route path="/dashboard/reports" element={<Reports />} />
         <Route path="/dashboard/membership-plans" element={<MembershipPlans />} />
         <Route path="/dashboard/members" element={<Member />} />
+        <Route path="/dashboard/user-management" element={<UserManagement />} /> {/* Add the new route */}
       </Routes>
     </Router>
   );
 }
 
 export default App;
-
-
