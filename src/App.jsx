@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { UserProvider } from "./context/UserContext.jsx";
 
 // Routes
 import Login from './pages/Login';
@@ -12,18 +13,20 @@ import UserManagement from './pages/UserManagement'; // Import the new UserManag
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/dashboard/reports" element={<Reports />} />
-        <Route path="/dashboard/membership-plans" element={<MembershipPlans />} />
-        <Route path="/dashboard/members" element={<Member />} />
-        <Route path="/dashboard/user-management" element={<UserManagement />} /> {/* Add the new route */}
-      </Routes>
-    </Router>
+    <UserProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/dashboard/reports" element={<Reports />} />
+          <Route path="/dashboard/membership-plans" element={<MembershipPlans />} />
+          <Route path="/dashboard/members" element={<Member />} />
+          <Route path="/dashboard/user-management" element={<UserManagement />} />
+        </Routes>
+      </Router>
+    </UserProvider>
   );
 }
 

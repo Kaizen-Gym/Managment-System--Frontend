@@ -42,10 +42,11 @@ function Login() {
       );
 
       if (response.data) {
+        console.log('User type:', response.data);
         // Store the token in localStorage
         localStorage.setItem('token', response.data.token);
         // Store user data if needed
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        localStorage.setItem('user', JSON.stringify(response.data));
         // Redirect to dashboard
         navigate('/dashboard');
       }
