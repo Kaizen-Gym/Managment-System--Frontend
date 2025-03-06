@@ -20,9 +20,12 @@ function MembershipPlans() {
     description: '',
     features: ['']
   });
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
     fetchPlans();
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
   }, []);
 
   const fetchPlans = async () => {
@@ -155,6 +158,16 @@ function MembershipPlans() {
       {error}
     </div>
   );
+
+  if (userRole !== 'admin' && userRole !== 'manager') {
+    return (
+      <DashboardLayout>
+        <div className="text-center p-4">
+          You do not have permission to view this page.
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
