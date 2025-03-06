@@ -109,16 +109,16 @@ const DashboardLayout = ({ children }) => {
       permission: "view_membership_plans",
     },
     {
-      icon: <FaCog className="w-5 h-5" />,
-      title: "Settings",
-      path: "/dashboard/settings",
-      permission: "view_settings",
-    },
-    {
       icon: <FaUserShield className="w-5 h-5" />,
       title: "User Management",
       path: "/dashboard/user-management",
       permission: "manage_users",
+    },
+    {
+      icon: <FaCog className="w-5 h-5" />,
+      title: "Settings",
+      path: "/dashboard/settings",
+      permission: "view_settings",
     },
   ];
 
