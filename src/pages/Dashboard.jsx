@@ -70,6 +70,7 @@ function Dashboard() {
     membership_payment_date: new Date().toISOString().split('T')[0],
   });
   const [showSuccessfullPayment, setShowSuccessfullPayment] = useState(false);
+  const [user, setUser] = useState(null);
   const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
@@ -78,7 +79,27 @@ function Dashboard() {
     fetchMembershipPlans();
     const role = localStorage.getItem("userRole");
     setUserRole(role);
+    fetchUser();
   }, []);
+  
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        'http://localhost:5050/api/auth/profile',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setUser(response.data);
+      console.log(response.data)
+    } catch (err) {
+      setError('Failed to fetch user');
+      console.error('Error fetching user:', err);
+    }
+  };
 
   const fetchMembers = async () => {
     try {
@@ -476,140 +497,119 @@ function Dashboard() {
             </div>
 
             {/* Dashboard Widgets */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-              {/* Total Members Widget */}
-              {userRole === 'admin' || userRole === 'manager' ? (
-                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Members
-                      </p>
-                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                        {dashboardStats.totalMembers}
-                      </h3>
-                    </div>
-                    <div className="bg-blue-100 p-3 rounded-full">
-                      <FaUsers className="w-6 h-6 text-blue-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {dashboardStats.membershipRenewalRate.toFixed(1)}% renewal
-                    rate
-                  </p>
-                </div>
-              ) : null}
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+  {/* Total Members Widget - Visible to all */}
+  <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Total Members</p>
+        <h3 className="text-2xl font-bold text-gray-900 mt-2">
+          {dashboardStats.totalMembers}
+        </h3>
+      </div>
+      <div className="bg-blue-100 p-3 rounded-full">
+        <FaUsers className="w-6 h-6 text-blue-600" />
+      </div>
+    </div>
+    <p className="text-sm text-gray-500 mt-2">
+      {dashboardStats.membershipRenewalRate.toFixed(1)}% renewal rate
+    </p>
+  </div>
 
-              {/* New Members Widget */}
-              {userRole === 'admin' || userRole === 'manager' ? (
-                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        New Members
-                      </p>
-                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                        {dashboardStats.newMembers}
-                      </h3>
-                    </div>
-                    <div className="bg-green-100 p-3 rounded-full">
-                      <FaUserPlus className="w-6 h-6 text-green-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">This month</p>
-                </div>
-              ) : null}
+  {/* New Members Widget - Visible to all */}
+  <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">New Members</p>
+        <h3 className="text-2xl font-bold text-gray-900 mt-2">
+          {dashboardStats.newMembers}
+        </h3>
+      </div>
+      <div className="bg-green-100 p-3 rounded-full">
+        <FaUserPlus className="w-6 h-6 text-green-600" />
+      </div>
+    </div>
+    <p className="text-sm text-gray-500 mt-2">This month</p>
+  </div>
 
-              {/* Expiring Memberships Widget */}
-              {userRole === 'admin' || userRole === 'manager' ? (
-                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Expiring Soon
-                      </p>
-                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                        {dashboardStats.expiringMemberships}
-                      </h3>
-                    </div>
-                    <div className="bg-yellow-100 p-3 rounded-full">
-                      <FaExclamationTriangle className="w-6 h-6 text-yellow-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">Next 30 days</p>
-                </div>
-              ) : null}
+  {/* Expiring Memberships Widget - Visible to all */}
+  <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Expiring Soon</p>
+        <h3 className="text-2xl font-bold text-gray-900 mt-2">
+          {dashboardStats.expiringMemberships}
+        </h3>
+      </div>
+      <div className="bg-yellow-100 p-3 rounded-full">
+        <FaExclamationTriangle className="w-6 h-6 text-yellow-600" />
+      </div>
+    </div>
+    <p className="text-sm text-gray-500 mt-2">Next 30 days</p>
+  </div>
 
-              {/* Revenue Widget */}
-              {userRole === 'admin' || userRole === 'manager' ? (
-                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Revenue
-                      </p>
-                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                        ₹{dashboardStats.totalRevenue.toLocaleString()}
-                      </h3>
-                    </div>
-                    <div className="bg-purple-100 p-3 rounded-full">
-                      <FaRupeeSign className="w-6 h-6 text-purple-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {dashboardStats.paymentSummary?.totalPayments || 0} payments
-                  </p>
-                </div>
-              ) : null}
+  {/* Revenue Widget - Hide for Receptionists */}
+  {user.user_type.toLowerCase() !== "receptionist" && (
+    <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-2">
+            ₹{dashboardStats.totalRevenue.toLocaleString()}
+          </h3>
+        </div>
+        <div className="bg-purple-100 p-3 rounded-full">
+          <FaRupeeSign className="w-6 h-6 text-purple-600" />
+        </div>
+      </div>
+      <p className="text-sm text-gray-500 mt-2">
+        {dashboardStats.paymentSummary?.totalPayments || 0} payments
+      </p>
+    </div>
+  )}
 
-              {/* Due Amount Widget */}
-              {userRole === 'admin' || userRole === 'manager' ? (
-                <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">
-                        Total Due Amount
-                      </p>
-                      <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                        ₹{dashboardStats.totalDue?.toLocaleString() || '0'}
-                      </h3>
-                    </div>
-                    <div className="bg-red-100 p-3 rounded-full">
-                      <FaExclamationCircle className="w-6 h-6 text-red-600" />
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {dashboardStats.membersWithDue || 0} members with dues
-                  </p>
-                </div>
-              ) : null}
-            </div>
-            {/* Payment Methods Breakdown */}
-            {userRole === 'admin' || userRole === 'manager' ? (
-              <div className="bg-white rounded-lg shadow p-6 mb-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Payment Methods
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {dashboardStats.paymentMethodsBreakdown?.map((method) => (
-                    <div
-                      key={method._id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                    >
-                      <div>
-                        <p className="font-medium">{method._id}</p>
-                        <p className="text-sm text-gray-500">
-                          {method.count} payments
-                        </p>
-                      </div>
-                      <p className="font-bold">
-                        ₹{method.total.toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+  {/* Due Amount Widget - Hide for Receptionists */}
+  {user.user_type.toLowerCase() !== "receptionist" && (
+    <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">Total Due Amount</p>
+          <h3 className="text-2xl font-bold text-gray-900 mt-2">
+            ₹{dashboardStats.totalDue?.toLocaleString() || "0"}
+          </h3>
+        </div>
+        <div className="bg-red-100 p-3 rounded-full">
+          <FaExclamationCircle className="w-6 h-6 text-red-600" />
+        </div>
+      </div>
+      <p className="text-sm text-gray-500 mt-2">
+        {dashboardStats.membersWithDue || 0} members with dues
+      </p>
+    </div>
+  )}
+</div>
+
+{/* Payment Methods Breakdown - Hide for Receptionists */}
+{user.user_type.toLowerCase() !== "receptionist" && (
+  <div className="bg-white rounded-lg shadow p-6 mb-6">
+    <h3 className="text-lg font-medium text-gray-900 mb-4">Payment Methods</h3>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {dashboardStats.paymentMethodsBreakdown?.map((method) => (
+        <div
+          key={method._id}
+          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+        >
+          <div>
+            <p className="font-medium">{method._id}</p>
+            <p className="text-sm text-gray-500">{method.count} payments</p>
+          </div>
+          <p className="font-bold">₹{method.total.toLocaleString()}</p>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
 
             {/* Member List */}
             <div className="bg-white shadow rounded-lg">

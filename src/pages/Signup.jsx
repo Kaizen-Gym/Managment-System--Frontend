@@ -13,30 +13,33 @@ function Signup() {
     number: '',
     password: '',
     confirmPassword: '',
-    gymId: ''
+    user_type:'',
+    gymId: '',
   });
 
   const [gyms, setGyms] = useState([]);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const fetchGyms = async () => {
-      try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/utils/gyms`);
-        setGyms(response.data);
-      } catch (error) {
-        console.error('Error fetching gyms:', error);
-        setError('Failed to load gyms');
-      }
-    };
-
     fetchGyms();
   }, []);
+  
+  const fetchGyms = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/api/utils/gyms`
+      );
+      setGyms(response.data);
+    } catch (error) {
+      console.error('Error fetching gyms:', error);
+      setError('Failed to load gyms');
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -48,12 +51,20 @@ function Signup() {
     }
     try {
       const { confirmPassword, ...signupData } = formData;
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, signupData);
+      console.log(signupData)
+      const token = localStorage.getItem('token'); // Get the admin token
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/auth/register`,
+        signupData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
       if (response.data) {
         navigate('/login');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during signup');
+      setError(
+        err.response?.data?.message || 'An error occurred during signup'
+      );
     }
   };
 
@@ -66,7 +77,9 @@ function Signup() {
         </h2>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && <div className="text-red-500 text-center text-sm">{error}</div>}
+          {error && (
+            <div className="text-red-500 text-center text-sm">{error}</div>
+          )}
 
           <input
             name="name"
@@ -94,10 +107,18 @@ function Signup() {
               appearance: 'none',
             }}
           >
-            <option value="" className="bg-[#1a1f2b] text-white">Select Gender</option>
-            <option value="Male" className="bg-[#1a1f2b] text-white">Male</option>
-            <option value="Female" className="bg-[#1a1f2b] text-white">Female</option>
-            <option value="Other" className="bg-[#1a1f2b] text-white">Other</option>
+            <option value="" className="bg-[#1a1f2b] text-white">
+              Select Gender
+            </option>
+            <option value="Male" className="bg-[#1a1f2b] text-white">
+              Male
+            </option>
+            <option value="Female" className="bg-[#1a1f2b] text-white">
+              Female
+            </option>
+            <option value="Other" className="bg-[#1a1f2b] text-white">
+              Other
+            </option>
           </select>
 
           <input
@@ -130,6 +151,28 @@ function Signup() {
             value={formData.number}
             onChange={handleChange}
           />
+          
+          <select
+            name="user_type"
+            required
+            className="w-full px-4 py-3 rounded-md bg-white/10 text-white placeholder-white/70 focus:outline-none focus:bg-white/20 hover:bg-white/20 transition-all duration-300"
+            placeholder="User Type"
+            value={formData.user_type}
+            onChange={handleChange}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '5px',
+              color: 'white',
+              // Remove default select styling
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              appearance: 'none',
+            }}
+          >
+            <option value="Admin" className="bg-[#1a1f2b] text-white">Admin</option>
+            <option value="User" className="bg-[#1a1f2b] text-white">User</option>
+            <option value="Receptionist" className="bg-[#1a1f2b] text-white">Receptionist</option>
+          </select>
 
           <input
             name="password"
@@ -167,9 +210,15 @@ function Signup() {
               appearance: 'none',
             }}
           >
-            <option value="" className="bg-[#1a1f2b] text-white">Select Gym</option>
-            {gyms.map(gym => (
-              <option key={gym._id} value={gym._id} className="bg-[#1a1f2b] text-white">
+            <option value="" className="bg-[#1a1f2b] text-white">
+              Select Gym
+            </option>
+            {gyms.map((gym) => (
+              <option
+                key={gym._id}
+                value={gym._id}
+                className="bg-[#1a1f2b] text-white"
+              >
                 {gym.name}
               </option>
             ))}

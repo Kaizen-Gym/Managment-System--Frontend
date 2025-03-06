@@ -11,6 +11,7 @@ import {
   FaTimes,
   FaCreditCard,
   FaBars,
+  FaSignOutAlt, // Logout icon from FontAwesome
 } from "react-icons/fa";
 import axios from "axios";
 
@@ -38,11 +39,14 @@ const DashboardLayout = ({ children }) => {
   const fetchMembers = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:5050/api/member/members", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:5050/api/member/members",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setMembers(response.data.members);
       setLoading(false);
     } catch (err) {
@@ -75,6 +79,12 @@ const DashboardLayout = ({ children }) => {
 
   const handleBack = () => {
     setSelectedMemberNumber(null);
+  };
+
+  // Logout handler: clears token and navigates to login
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
   const menuItems = [
@@ -146,6 +156,17 @@ const DashboardLayout = ({ children }) => {
               </Link>
             ))}
         </nav>
+
+        {/* Logout Button at the bottom */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 pb-4">
+          <button
+            onClick={handleLogout}
+            className="flex items-center w-full px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+          >
+            <FaSignOutAlt className="w-5 h-5" />
+            <span className="ml-3">Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content Area */}
