@@ -25,11 +25,14 @@ const DashboardLayout = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMemberNumber, setSelectedMemberNumber] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchMembers();
+    const role = localStorage.getItem("userRole");
+    setUserRole(role);
   }, []);
 
   const fetchMembers = async () => {
@@ -79,26 +82,31 @@ const DashboardLayout = ({ children }) => {
       icon: <FaHome className="w-5 h-5" />,
       title: "Dashboard",
       path: "/dashboard",
+      roles: ["admin", "manager", "user"],
     },
     {
       icon: <FaUsers className="w-5 h-5" />,
       title: "Members",
       path: "/dashboard/members",
+      roles: ["admin", "manager"],
     },
     {
       icon: <FaChartBar className="w-5 h-5" />,
       title: "Reports",
       path: "/dashboard/reports",
+      roles: ["admin", "manager"],
     },
     {
       icon: <FaCreditCard className="w-5 h-5" />,
       title: "Membership-Plans",
       path: "/dashboard/membership-plans",
+      roles: ["admin", "manager"],
     },
     {
       icon: <FaCog className="w-5 h-5" />,
       title: "Settings",
       path: "/dashboard/settings",
+      roles: ["admin"],
     },
   ];
 
@@ -125,16 +133,18 @@ const DashboardLayout = ({ children }) => {
 
         {/* Navigation Items */}
         <nav className="mt-4">
-          {menuItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.path}
-              className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-            >
-              {item.icon}
-              <span className="ml-3">{item.title}</span>
-            </Link>
-          ))}
+          {menuItems
+            .filter((item) => item.roles.includes(userRole))
+            .map((item, index) => (
+              <Link
+                key={index}
+                to={item.path}
+                className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+              >
+                {item.icon}
+                <span className="ml-3">{item.title}</span>
+              </Link>
+            ))}
         </nav>
       </div>
 
