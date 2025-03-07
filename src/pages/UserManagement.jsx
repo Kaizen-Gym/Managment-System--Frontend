@@ -1,17 +1,31 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaEdit, FaTrash, FaPlus, FaUsers, FaUser, FaEnvelope, FaLock, FaPhone, FaVenusMars, FaBirthdayCake, FaBuilding, FaUserPlus } from 'react-icons/fa';
+import {
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaUsers,
+  FaUser,
+  FaEnvelope,
+  FaLock,
+  FaPhone,
+  FaVenusMars,
+  FaBirthdayCake,
+  FaBuilding,
+  FaUserPlus,
+} from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 import usePermissions from '../hooks/usePermissions';
 import DashboardLayout from '../components/DashboardLayout';
+import ErrorAnimation from '../components/Animations/ErrorAnimation';
 
 const availablePermissions = [
-  "view_dashboard",
-  "view_members",
-  "view_reports",
-  "view_membership_plans",
-  "view_settings",
-  "manage_users",
+  'view_dashboard',
+  'view_members',
+  'view_reports',
+  'view_membership_plans',
+  'view_settings',
+  'manage_users',
 ];
 
 const UserManagement = () => {
@@ -35,6 +49,10 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { hasPermission } = usePermissions();
+  const [errorAnimation, setErrorAnimation] = useState({
+    show: false,
+    message: '',
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -120,16 +138,36 @@ const UserManagement = () => {
 
   const handleUpdateUser = async () => {
     try {
+      // Retrieve the current logged-in user from localStorage and parse it
+      const storedUser = JSON.parse(localStorage.getItem('user'));
+      if (!storedUser) {
+        alert('No current user found.');
+        return;
+      }
+
+      // Prevent the user from updating their own account details by comparing user IDs
+      if (storedUser._id === editingUser._id) {
+        setErrorAnimation({
+          show: true,
+          message: 'You cannot change your own account details.',
+        });
+        setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+        setEditingUser(null);
+        return;
+      }
+
       const token = localStorage.getItem('token');
       const response = await axios.put(
         `http://localhost:5050/api/users/${editingUser._id}`,
         editingUser,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+      console.log('Update response:', response.data);
+      const updatedUser = response.data.user || response.data;
+
+      // Update the users list with the updated user data
       setUsers(
-        users.map((user) =>
-          user._id === editingUser._id ? response.data.user : user
-        )
+        users.map((user) => (user._id === editingUser._id ? updatedUser : user))
       );
       setEditingUser(null);
     } catch (err) {
@@ -412,9 +450,15 @@ const UserManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.map((user) => (
                       <tr key={user._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.user_type}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.user_type}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
@@ -475,7 +519,9 @@ const UserManagement = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {roles.map((role, index) => (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap">{role}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {role}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handleDeleteRole(role)}
@@ -571,6 +617,12 @@ const UserManagement = () => {
             )}
           </>
         )}
+
+        {/* Place the ErrorAnimation component at the root level so it's always rendered */}
+        <ErrorAnimation
+          show={errorAnimation.show}
+          message={errorAnimation.message}
+        />
       </div>
     </DashboardLayout>
   );
