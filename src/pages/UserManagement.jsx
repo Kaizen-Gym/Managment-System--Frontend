@@ -13,6 +13,7 @@ import {
   FaBirthdayCake,
   FaBuilding,
   FaUserPlus,
+  FaBan, // Unauthorized icon
 } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 import usePermissions from '../hooks/usePermissions';
@@ -54,10 +55,31 @@ const UserManagement = () => {
     message: '',
   });
 
+  // Retrieve and parse the logged-in user from localStorage
+  const storedUser = localStorage.getItem('user');
+  const loggedUser = storedUser ? JSON.parse(storedUser) : null;
+
+  // Only allow Admin or Manager to access the page
+  if (
+    !loggedUser ||
+    (loggedUser.user_type !== 'Admin' && loggedUser.user_type !== 'Manager')
+  ) {
+    return (
+      <DashboardLayout>
+        <div className="flex flex-col items-center justify-center h-full p-6">
+          <FaBan className="text-6xl text-red-600 mb-4" />
+          <h1 className="text-2xl font-bold text-red-600">Unauthorized</h1>
+          <p>You do not have sufficient permissions to access this page.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
     fetchGyms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchUsers = async () => {
@@ -105,13 +127,9 @@ const UserManagement = () => {
   const handleAddUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        'http://localhost:5050/api/users',
-        newUser,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await axios.post('http://localhost:5050/api/users', newUser, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setUsers([...users, response.data.user || response.data]);
       // Reset form state and close modal
       setNewUser({
@@ -138,15 +156,8 @@ const UserManagement = () => {
 
   const handleUpdateUser = async () => {
     try {
-      // Retrieve the current logged-in user from localStorage and parse it
-      const storedUser = JSON.parse(localStorage.getItem('user'));
-      if (!storedUser) {
-        alert('No current user found.');
-        return;
-      }
-
       // Prevent the user from updating their own account details by comparing user IDs
-      if (storedUser._id === editingUser._id) {
+      if (loggedUser._id === editingUser._id) {
         setErrorAnimation({
           show: true,
           message: 'You cannot change your own account details.',
@@ -166,9 +177,7 @@ const UserManagement = () => {
       const updatedUser = response.data.user || response.data;
 
       // Update the users list with the updated user data
-      setUsers(
-        users.map((user) => (user._id === editingUser._id ? updatedUser : user))
-      );
+      setUsers(users.map((user) => (user._id === editingUser._id ? updatedUser : user)));
       setEditingUser(null);
     } catch (err) {
       console.error('Error updating user:', err);
@@ -278,9 +287,7 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Name"
                         value={newUser.name}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, name: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -289,9 +296,7 @@ const UserManagement = () => {
                       <FaVenusMars className="text-gray-500 mr-2" />
                       <select
                         value={newUser.gender}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, gender: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Gender</option>
@@ -307,9 +312,7 @@ const UserManagement = () => {
                         type="number"
                         placeholder="Age"
                         value={newUser.age}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, age: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, age: e.target.value })}
                         className="flex-1 outline-none"
                         min="14"
                       />
@@ -321,9 +324,7 @@ const UserManagement = () => {
                         type="email"
                         placeholder="Email"
                         value={newUser.email}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, email: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -334,9 +335,7 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Phone Number"
                         value={newUser.number}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, number: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, number: e.target.value })}
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -347,9 +346,7 @@ const UserManagement = () => {
                         type="password"
                         placeholder="Password"
                         value={newUser.password}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, password: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -358,9 +355,7 @@ const UserManagement = () => {
                       <FaUser className="text-gray-500 mr-2" />
                       <select
                         value={newUser.user_type}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, user_type: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, user_type: e.target.value })}
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Role</option>
@@ -376,9 +371,7 @@ const UserManagement = () => {
                       <FaBuilding className="text-gray-500 mr-2" />
                       <select
                         value={newUser.gymId}
-                        onChange={(e) =>
-                          setNewUser({ ...newUser, gymId: e.target.value })
-                        }
+                        onChange={(e) => setNewUser({ ...newUser, gymId: e.target.value })}
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Gym</option>
@@ -450,15 +443,9 @@ const UserManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.map((user) => (
                       <tr key={user._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.email}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {user.user_type}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{user.user_type}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
@@ -519,9 +506,7 @@ const UserManagement = () => {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {roles.map((role, index) => (
                         <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {role}
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">{role}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <button
                               onClick={() => handleDeleteRole(role)}
@@ -619,10 +604,7 @@ const UserManagement = () => {
         )}
 
         {/* Place the ErrorAnimation component at the root level so it's always rendered */}
-        <ErrorAnimation
-          show={errorAnimation.show}
-          message={errorAnimation.message}
-        />
+        <ErrorAnimation show={errorAnimation.show} message={errorAnimation.message} />
       </div>
     </DashboardLayout>
   );
