@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   FaEdit,
@@ -13,7 +13,9 @@ import {
   FaBirthdayCake,
   FaBuilding,
   FaUserPlus,
-  FaBan, // Unauthorized icon
+  FaChevronDown,
+  FaChevronUp,
+  FaBan,
 } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 import usePermissions from '../hooks/usePermissions';
@@ -47,6 +49,7 @@ const UserManagement = () => {
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [newRole, setNewRole] = useState('');
+  const [editingRole, setEditingRole] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { hasPermission } = usePermissions();
@@ -58,6 +61,7 @@ const UserManagement = () => {
   // Retrieve and parse the logged-in user from localStorage
   const storedUser = localStorage.getItem('user');
   const loggedUser = storedUser ? JSON.parse(storedUser) : null;
+  const [expandedRoles, setExpandedRoles] = useState([]);
 
   // Only allow Admin or Manager to access the page
   if (
@@ -104,7 +108,23 @@ const UserManagement = () => {
       const response = await axios.get('http://localhost:5050/api/roles', {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setRoles(response.data);
+      // Ensure roles is an array of objects; if not, transform enum values to objects
+      if (
+        Array.isArray(response.data) &&
+        response.data.length > 0 &&
+        response.data[0].roleName
+      ) {
+        setRoles(response.data);
+      } else {
+        // Fallback: if only enum strings are provided
+        setRoles(
+          response.data.map((role) => ({
+            roleName: role,
+            defaultPermissions: availablePermissions,
+            currentPermissions: availablePermissions,
+          }))
+        );
+      }
     } catch (err) {
       console.error('Error fetching roles:', err);
       setError('Failed to fetch roles');
@@ -127,9 +147,13 @@ const UserManagement = () => {
   const handleAddUser = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post('http://localhost:5050/api/users', newUser, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await axios.post(
+        'http://localhost:5050/api/users',
+        newUser,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setUsers([...users, response.data.user || response.data]);
       // Reset form state and close modal
       setNewUser({
@@ -177,7 +201,9 @@ const UserManagement = () => {
       const updatedUser = response.data.user || response.data;
 
       // Update the users list with the updated user data
-      setUsers(users.map((user) => (user._id === editingUser._id ? updatedUser : user)));
+      setUsers(
+        users.map((user) => (user._id === editingUser._id ? updatedUser : user))
+      );
       setEditingUser(null);
     } catch (err) {
       console.error('Error updating user:', err);
@@ -201,12 +227,13 @@ const UserManagement = () => {
   const handleAddRole = async () => {
     try {
       const token = localStorage.getItem('token');
+      // Note: our API expects roleName instead of name
       const response = await axios.post(
         'http://localhost:5050/api/roles',
-        { name: newRole },
+        { roleName: newRole },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setRoles([...roles, response.data.role]);
+      setRoles([...roles, response.data]);
       setNewRole('');
     } catch (err) {
       console.error('Error adding role:', err);
@@ -214,16 +241,58 @@ const UserManagement = () => {
     }
   };
 
-  const handleDeleteRole = async (role) => {
+  const handleEditRole = (role) => {
+    setEditingRole(role);
+  };
+
+  const handleUpdateRole = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5050/api/roles/${role}`, {
+      const response = await axios.put(
+        `http://localhost:5050/api/roles/${editingRole._id}`,
+        {
+          defaultPermissions: editingRole.defaultPermissions,
+          currentPermissions: editingRole.currentPermissions,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Update roles state
+      setRoles(
+        roles.map((r) => (r._id === editingRole._id ? response.data : r))
+      );
+      setEditingRole(null);
+    } catch (err) {
+      console.error('Error updating role:', err);
+      alert('Error updating role');
+    }
+  };
+
+  const handleDeleteRole = async (roleId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`http://localhost:5050/api/roles/${roleId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setRoles(roles.filter((r) => r !== role));
+      setRoles(roles.filter((r) => r._id !== roleId));
     } catch (err) {
       console.error('Error deleting role:', err);
       alert('Error deleting role');
+    }
+  };
+  
+  const formatPermission = (permission) => {
+    return permission
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  
+  const toggleRoleExpand = (roleKey) => {
+    if (expandedRoles.includes(roleKey)) {
+      setExpandedRoles(expandedRoles.filter((id) => id !== roleKey));
+    } else {
+      setExpandedRoles([...expandedRoles, roleKey]);
     }
   };
 
@@ -240,6 +309,25 @@ const UserManagement = () => {
         permissions: [...newUser.permissions, permission],
       });
     }
+  };
+
+  // Toggle permissions for role editing (for default and current permissions)
+  const toggleRoleDefaultPermission = (permission) => {
+    if (!editingRole) return;
+    const current = editingRole.defaultPermissions || [];
+    const updated = current.includes(permission)
+      ? current.filter((p) => p !== permission)
+      : [...current, permission];
+    setEditingRole({ ...editingRole, defaultPermissions: updated });
+  };
+
+  const toggleRoleCurrentPermission = (permission) => {
+    if (!editingRole) return;
+    const current = editingRole.currentPermissions || [];
+    const updated = current.includes(permission)
+      ? current.filter((p) => p !== permission)
+      : [...current, permission];
+    setEditingRole({ ...editingRole, currentPermissions: updated });
   };
 
   return (
@@ -287,7 +375,9 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Name"
                         value={newUser.name}
-                        onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, name: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -296,7 +386,9 @@ const UserManagement = () => {
                       <FaVenusMars className="text-gray-500 mr-2" />
                       <select
                         value={newUser.gender}
-                        onChange={(e) => setNewUser({ ...newUser, gender: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, gender: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Gender</option>
@@ -312,7 +404,9 @@ const UserManagement = () => {
                         type="number"
                         placeholder="Age"
                         value={newUser.age}
-                        onChange={(e) => setNewUser({ ...newUser, age: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, age: e.target.value })
+                        }
                         className="flex-1 outline-none"
                         min="14"
                       />
@@ -324,7 +418,9 @@ const UserManagement = () => {
                         type="email"
                         placeholder="Email"
                         value={newUser.email}
-                        onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, email: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -335,7 +431,9 @@ const UserManagement = () => {
                         type="text"
                         placeholder="Phone Number"
                         value={newUser.number}
-                        onChange={(e) => setNewUser({ ...newUser, number: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, number: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -346,7 +444,9 @@ const UserManagement = () => {
                         type="password"
                         placeholder="Password"
                         value={newUser.password}
-                        onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, password: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       />
                     </div>
@@ -355,13 +455,15 @@ const UserManagement = () => {
                       <FaUser className="text-gray-500 mr-2" />
                       <select
                         value={newUser.user_type}
-                        onChange={(e) => setNewUser({ ...newUser, user_type: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, user_type: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Role</option>
-                        {roles.map((role, index) => (
-                          <option key={index} value={role}>
-                            {role}
+                        {roles.map((role) => (
+                          <option key={role._id} value={role.roleName}>
+                            {role.roleName}
                           </option>
                         ))}
                       </select>
@@ -371,7 +473,9 @@ const UserManagement = () => {
                       <FaBuilding className="text-gray-500 mr-2" />
                       <select
                         value={newUser.gymId}
-                        onChange={(e) => setNewUser({ ...newUser, gymId: e.target.value })}
+                        onChange={(e) =>
+                          setNewUser({ ...newUser, gymId: e.target.value })
+                        }
                         className="flex-1 outline-none"
                       >
                         <option value="">Select Gym</option>
@@ -443,9 +547,15 @@ const UserManagement = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {users.map((user) => (
                       <tr key={user._id}>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">{user.user_type}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.email}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {user.user_type}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex space-x-2">
                             <button
@@ -471,7 +581,7 @@ const UserManagement = () => {
               </div>
             </div>
 
-            {/* Roles Table */}
+            {/* Roles Section */}
             {hasPermission('manage_roles') && (
               <div className="mb-6">
                 <h2 className="text-xl font-semibold mb-2">Roles</h2>
@@ -496,7 +606,7 @@ const UserManagement = () => {
                     <thead>
                       <tr className="bg-gray-50">
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Role
+                          Role Name
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Actions
@@ -504,25 +614,75 @@ const UserManagement = () => {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {roles.map((role, index) => (
-                        <tr key={index}>
-                          <td className="px-6 py-4 whitespace-nowrap">{role}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <button
-                              onClick={() => handleDeleteRole(role)}
-                              className="p-2 bg-red-500 text-white rounded-lg"
-                              title="Delete Role"
-                            >
-                              <FaTrash />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {roles.map((role) => {
+                        // Use role._id if available, otherwise role.roleName
+                        const roleKey = role._id || role.roleName;
+                        return (
+                          <React.Fragment key={roleKey}>
+                            <tr>
+                              <td className="px-6 py-4 whitespace-nowrap flex items-center">
+                                <button
+                                  onClick={() => toggleRoleExpand(roleKey)}
+                                  className="mr-2 focus:outline-none"
+                                  title="Toggle Details"
+                                >
+                                  {expandedRoles.includes(roleKey) ? (
+                                    <FaChevronUp />
+                                  ) : (
+                                    <FaChevronDown />
+                                  )}
+                                </button>
+                                {role.roleName}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => handleEditRole(role)}
+                                    className="p-2 bg-yellow-500 text-white rounded-lg"
+                                    title="Edit Role"
+                                  >
+                                    <FaEdit />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteRole(roleKey)}
+                                    className="p-2 bg-red-500 text-white rounded-lg"
+                                    title="Delete Role"
+                                  >
+                                    <FaTrash />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {expandedRoles.includes(roleKey) && (
+                              <tr>
+                                <td colSpan="2" className="px-6 py-4">
+                                  <div>
+                                    <div>
+                                      <strong>Default Permissions:</strong>{' '}
+                                      {role.defaultPermissions
+                                        ?.map(formatPermission)
+                                        .join(', ')}
+                                    </div>
+                                    <div>
+                                      <strong>Current Permissions:</strong>{' '}
+                                      {role.currentPermissions
+                                        ?.map(formatPermission)
+                                        .join(', ')}
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
               </div>
             )}
+
+
 
             {/* Edit User Modal */}
             {editingUser && (
@@ -573,9 +733,9 @@ const UserManagement = () => {
                         className="p-2 border rounded-lg w-full"
                       >
                         <option value="">Select Role</option>
-                        {roles.map((role, index) => (
-                          <option key={index} value={role}>
-                            {role}
+                        {roles.map((role) => (
+                          <option key={role._id} value={role.roleName}>
+                            {role.roleName}
                           </option>
                         ))}
                       </select>
@@ -600,11 +760,102 @@ const UserManagement = () => {
                 </div>
               </Dialog>
             )}
+
+            {/* Edit Role Modal */}
+            {editingRole && (
+              <Dialog
+                open={!!editingRole}
+                onClose={() => setEditingRole(null)}
+                className="relative z-50"
+              >
+                <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+                <div className="fixed inset-0 flex items-center justify-center p-4">
+                  <Dialog.Panel className="bg-white rounded-lg p-6 w-full max-w-lg">
+                    <Dialog.Title className="text-xl font-semibold mb-4">
+                      Edit Role - {editingRole.roleName}
+                    </Dialog.Title>
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-2">
+                        Default Permissions
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availablePermissions.map((permission, index) => (
+                          <label
+                            key={index}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                editingRole.defaultPermissions &&
+                                editingRole.defaultPermissions.includes(
+                                  permission
+                                )
+                              }
+                              onChange={() =>
+                                toggleRoleDefaultPermission(permission)
+                              }
+                            />
+                            <span>{permission}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-2">
+                        Current Permissions
+                      </h3>
+                      <div className="grid grid-cols-2 gap-2">
+                        {availablePermissions.map((permission, index) => (
+                          <label
+                            key={index}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                editingRole.currentPermissions &&
+                                editingRole.currentPermissions.includes(
+                                  permission
+                                )
+                              }
+                              onChange={() =>
+                                toggleRoleCurrentPermission(permission)
+                              }
+                            />
+                            <span>{permission}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="mt-6 flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-gray-200 rounded-lg"
+                        onClick={() => setEditingRole(null)}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg"
+                        onClick={handleUpdateRole}
+                      >
+                        Save Changes
+                      </button>
+                    </div>
+                  </Dialog.Panel>
+                </div>
+              </Dialog>
+            )}
           </>
         )}
 
         {/* Place the ErrorAnimation component at the root level so it's always rendered */}
-        <ErrorAnimation show={errorAnimation.show} message={errorAnimation.message} />
+        <ErrorAnimation
+          show={errorAnimation.show}
+          message={errorAnimation.message}
+        />
       </div>
     </DashboardLayout>
   );
