@@ -19,7 +19,7 @@ const UserManagement = () => {
     password: '',
     role: '',
     gym: '',
-    permissions: {},
+    permissions: [],
   });
   const [editingUser, setEditingUser] = useState(null);
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
@@ -47,6 +47,15 @@ const UserManagement = () => {
   const gymId = storedUser.gymId;
   console.log(gymId);
 
+  const allPermissions = [
+    'view_dashboard',
+    'view_members',
+    'view_reports',
+    'view_membership_plans',
+    'view_settings',
+    'manage_users',
+  ];
+
   useEffect(() => {
     fetchUsers();
     fetchRoles();
@@ -62,13 +71,17 @@ const UserManagement = () => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to fetch users: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to fetch users: ${response.status} ${errorText}`
+        );
       }
       const data = await response.json();
       setUsers(data);
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     } finally {
       setLoadingUsers(false);
     }
@@ -84,7 +97,8 @@ const UserManagement = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ ...newUser, gym: gymId }),
+        // Send gymId as required by your API.
+        body: JSON.stringify({ ...newUser, gymId: gymId }),
       });
       if (!response.ok) {
         const errorText = await response.text();
@@ -92,21 +106,23 @@ const UserManagement = () => {
       }
       const createdUser = await response.json();
       setUsers((prev) => [...prev, createdUser]);
+      // Reset the form with all fields
       setNewUser({
         name: '',
+        email: '',
+        user_type: '',
+        number: '',
+        password: '',
         gender: '',
         age: '',
-        email: '',
-        phone: '',
-        password: '',
-        role: '',
-        gym: '',
-        permissions: {},
+        permissions: [],
       });
       setIsCreateUserModalOpen(false);
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -115,6 +131,8 @@ const UserManagement = () => {
     if (user._id === currentUser._id) {
       setErrorMessage('Cannot edit your own account');
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
       return;
     }
     setEditingUser(user);
@@ -135,7 +153,9 @@ const UserManagement = () => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to update user: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to update user: ${response.status} ${errorText}`
+        );
       }
       const updatedUser = await response.json();
       setUsers((prev) =>
@@ -146,6 +166,8 @@ const UserManagement = () => {
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -158,23 +180,27 @@ const UserManagement = () => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to delete user: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to delete user: ${response.status} ${errorText}`
+        );
       }
       setUsers((prev) => prev.filter((user) => user._id !== userId));
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
+  // Toggle permission: add it if not present, remove if already selected
   const togglePermission = (permName) => {
-    setNewUser((prev) => ({
-      ...prev,
-      permissions: {
-        ...prev.permissions,
-        [permName]: !prev.permissions[permName],
-      },
-    }));
+    setNewUser((prev) => {
+      const newPermissions = prev.permissions.includes(permName)
+        ? prev.permissions.filter((p) => p !== permName)
+        : [...prev.permissions, permName];
+      return { ...prev, permissions: newPermissions };
+    });
   };
 
   const fetchRoles = async () => {
@@ -186,7 +212,9 @@ const UserManagement = () => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to fetch roles: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to fetch roles: ${response.status} ${errorText}`
+        );
       }
       let data = await response.json();
       data = data.map((role) => {
@@ -195,7 +223,9 @@ const UserManagement = () => {
         }
         const normalizePerms = (perms) =>
           Array.isArray(perms)
-            ? perms.map((p) => (typeof p === 'string' ? { name: p, active: false } : p))
+            ? perms.map((p) =>
+                typeof p === 'string' ? { name: p, active: false } : p
+              )
             : [];
         return {
           ...role,
@@ -207,6 +237,8 @@ const UserManagement = () => {
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     } finally {
       setLoadingRoles(false);
     }
@@ -235,6 +267,8 @@ const UserManagement = () => {
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -247,27 +281,36 @@ const UserManagement = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/roles/${editingRole.name}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editingRole),
-      });
+      const response = await fetch(
+        `${API_BASE}/api/roles/${editingRole.name}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(editingRole),
+        }
+      );
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to update role: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to update role: ${response.status} ${errorText}`
+        );
       }
       const updatedRole = await response.json();
       setRoles((prev) =>
-        prev.map((role) => (role.name === updatedRole.name ? updatedRole : role))
+        prev.map((role) =>
+          role.name === updatedRole.name ? updatedRole : role
+        )
       );
       setEditingRole(null);
       setIsEditRoleModalOpen(false);
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -280,12 +323,16 @@ const UserManagement = () => {
       });
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to delete role: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to delete role: ${response.status} ${errorText}`
+        );
       }
       setRoles((prev) => prev.filter((role) => role.name !== roleName));
     } catch (error) {
       setErrorMessage(error.message);
       setErrorAnimation(true);
+      
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -350,7 +397,9 @@ const UserManagement = () => {
                 {users.map((user) => (
                   <tr key={user._id}>
                     <td className="px-6 py-4 whitespace-nowrap">{user.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">{user.email}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {user.email}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">{user.role}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
@@ -403,7 +452,9 @@ const UserManagement = () => {
                   {roles.map((role) => (
                     <React.Fragment key={role.name}>
                       <tr>
-                        <td className="px-6 py-4 whitespace-nowrap">{role.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {role.name}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                           <button
                             onClick={() => handleEditRole(role)}
@@ -421,7 +472,9 @@ const UserManagement = () => {
                             onClick={() => toggleRoleExpand(role.name)}
                             className="text-blue-600 hover:text-blue-900"
                           >
-                            {expandedRoles.includes(role.name) ? 'Collapse' : 'Expand'}
+                            {expandedRoles.includes(role.name)
+                              ? 'Collapse'
+                              : 'Expand'}
                           </button>
                         </td>
                       </tr>
@@ -465,16 +518,24 @@ const UserManagement = () => {
           onClose={() => setIsCreateUserModalOpen(false)}
           className="relative z-50"
         >
+          {/* Backdrop */}
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+      
+          {/* Centering container */}
           <div className="fixed inset-0 flex items-center justify-center p-4">
-            <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">Create User</Dialog.Title>
-              <form onSubmit={handleAddUser} className="mt-4 space-y-2">
+            <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white bg-gradient-to-b from-gray-50 to-white p-8 text-left align-middle shadow-xl transition-all duration-300 ease-out motion-safe:animate-[fadeIn_0.3s_ease-in-out]">
+              <Dialog.Title className="text-2xl font-bold text-gray-900 pb-4 border-b border-gray-200 mb-6">
+                Create User
+              </Dialog.Title>
+      
+              <form onSubmit={handleAddUser} className="mt-4 space-y-4">
                 <input
                   type="text"
                   placeholder="Name"
                   value={newUser.name}
-                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, name: e.target.value })
+                  }
                   className="p-2 border rounded w-full"
                   required
                 />
@@ -482,24 +543,100 @@ const UserManagement = () => {
                   type="email"
                   placeholder="Email"
                   value={newUser.email}
-                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, email: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <select
+                  value={newUser.user_type}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, user_type: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                >
+                  <option value="">Select User Type</option>
+                  <option value="Admin">Admin</option>
+                  <option value="User">User</option>
+                  <option value="Trainer">Trainer</option>
+                  <option value="Receptionist">Receptionist</option>
+                  <option value="Manager">Manager</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Phone Number"
+                  value={newUser.number}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, number: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={newUser.password}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, password: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <select
+                  value={newUser.gender}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, gender: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Age"
+                  value={newUser.age}
+                  onChange={(e) =>
+                    setNewUser({ ...newUser, age: e.target.value })
+                  }
                   className="p-2 border rounded w-full"
                   required
                 />
                 <div className="flex flex-wrap gap-2">
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={newUser.permissions.manage_users || false}
-                      onChange={() => togglePermission('manage_users')}
-                      className="mr-1"
-                    />
-                    Manage Users
-                  </label>
+                  {allPermissions.map((perm) => (
+                    <label key={perm} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={newUser.permissions.includes(perm)}
+                        onChange={() => togglePermission(perm)}
+                        className="mr-1"
+                      />
+                      {formatPermission(perm)}
+                    </label>
+                  ))}
                 </div>
-                <button type="submit" className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
-                  Add User
-                </button>
+      
+                {/* Buttons */}
+                <div className="mt-8 flex justify-end space-x-4 border-t border-gray-200 pt-6">
+                  <button
+                    type="button"
+                    className="px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+                    onClick={() => setIsCreateUserModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors duration-200 shadow-sm"
+                  >
+                    Add User
+                  </button>
+                </div>
               </form>
             </DialogPanel>
           </div>
@@ -516,13 +653,17 @@ const UserManagement = () => {
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">Edit User</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold">
+                Edit User
+              </Dialog.Title>
               <form onSubmit={handleUpdateUser} className="mt-4 space-y-2">
                 <input
                   type="text"
                   placeholder="Name"
                   value={editingUser.name}
-                  onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, name: e.target.value })
+                  }
                   className="p-2 border rounded w-full"
                   required
                 />
@@ -530,11 +671,16 @@ const UserManagement = () => {
                   type="email"
                   placeholder="Email"
                   value={editingUser.email}
-                  onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, email: e.target.value })
+                  }
                   className="p-2 border rounded w-full"
                   required
                 />
-                <button type="submit" className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+                <button
+                  type="submit"
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                >
                   Update User
                 </button>
               </form>
@@ -553,17 +699,24 @@ const UserManagement = () => {
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">Add Role</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold">
+                Add Role
+              </Dialog.Title>
               <form onSubmit={handleAddRole} className="mt-4 space-y-2">
                 <input
                   type="text"
                   placeholder="Role Name"
                   value={newRole.name}
-                  onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                  onChange={(e) =>
+                    setNewRole({ ...newRole, name: e.target.value })
+                  }
                   className="p-2 border rounded w-full"
                   required
                 />
-                <button type="submit" className="mt-4 px-4 py-2 bg-green-500 text-white rounded">
+                <button
+                  type="submit"
+                  className="mt-4 px-4 py-2 bg-green-500 text-white rounded"
+                >
                   Add Role
                 </button>
               </form>
@@ -582,7 +735,9 @@ const UserManagement = () => {
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">Edit Role</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold">
+                Edit Role
+              </Dialog.Title>
               <form onSubmit={handleUpdateRole} className="mt-4 space-y-2">
                 <input
                   type="text"
@@ -601,7 +756,9 @@ const UserManagement = () => {
                         onChange={() =>
                           setEditingRole((prev) => ({
                             ...prev,
-                            defaultPermissions: (prev.defaultPermissions || []).map((p, index) =>
+                            defaultPermissions: (
+                              prev.defaultPermissions || []
+                            ).map((p, index) =>
                               index === i ? { ...p, active: !p.active } : p
                             ),
                           }))
@@ -622,7 +779,9 @@ const UserManagement = () => {
                         onChange={() =>
                           setEditingRole((prev) => ({
                             ...prev,
-                            currentPermissions: (prev.currentPermissions || []).map((p, index) =>
+                            currentPermissions: (
+                              prev.currentPermissions || []
+                            ).map((p, index) =>
                               index === i ? { ...p, active: !p.active } : p
                             ),
                           }))
@@ -633,7 +792,10 @@ const UserManagement = () => {
                     </div>
                   ))}
                 </div>
-                <button type="submit" className="mt-4 px-4 py-2 bg-blue-500 text-white rounded">
+                <button
+                  type="submit"
+                  className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+                >
                   Update Role
                 </button>
               </form>
