@@ -13,19 +13,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Run Snyk to check for vulnerabilities
-      uses: snyk/actions/node@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        args: --severity-threshold=high
+      - name: Run Snyk to check for vulnerabilities
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: snyk/actions/node@v2
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: test --severity-threshold=high
 
-    - name: Run OSSAR scan
-      uses: github/ossar-action@v1
-      if: ${{ github.event_name != 'pull_request' }}
+      - name: Run OSSAR scan
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: github/ossar-action@v1
 
-    - name: Run CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
-      if: ${{ github.event_name != 'pull_request' }}
+      - name: Run CodeQL Analysis
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: github/codeql-action/analyze@v2
