@@ -23,6 +23,7 @@ const DashboardLayout = ({ children }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [members, setMembers] = useState([]);
+  /* eslint-disable no-unused-vars */
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMemberNumber, setSelectedMemberNumber] = useState(null);

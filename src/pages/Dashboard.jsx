@@ -299,7 +299,6 @@ function Dashboard() {
         message: `An error occurred while adding the member. Contact Support!`,
       });
       setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
-      setEditingUser(null);
     }
   };
 
