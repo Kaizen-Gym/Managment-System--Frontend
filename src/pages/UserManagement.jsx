@@ -138,6 +138,26 @@ const UserManagement = () => {
     setEditingUser(user);
     setIsEditUserModalOpen(true);
   };
+  
+  const toggleEditPermission = (permission) => {
+    // Ensure permissions exists; if not, initialize it as an empty array
+    const currentPermissions = editingUser.permissions || [];
+    
+    if (currentPermissions.includes(permission)) {
+      // Remove the permission if it already exists
+      setEditingUser({
+        ...editingUser,
+        permissions: currentPermissions.filter((perm) => perm !== permission)
+      });
+    } else {
+      // Add the permission if it's not in the array
+      setEditingUser({
+        ...editingUser,
+        permissions: [...currentPermissions, permission]
+      });
+    }
+  };
+
 
   const handleUpdateUser = async (e) => {
     e.preventDefault();
@@ -653,9 +673,7 @@ const UserManagement = () => {
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">
-                Edit User
-              </Dialog.Title>
+              <Dialog.Title className="text-lg font-bold">Edit User</Dialog.Title>
               <form onSubmit={handleUpdateUser} className="mt-4 space-y-2">
                 <input
                   type="text"
@@ -677,6 +695,77 @@ const UserManagement = () => {
                   className="p-2 border rounded w-full"
                   required
                 />
+                <select
+                  value={editingUser.user_type}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, user_type: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                >
+                  <option value="">Select User Type</option>
+                  <option value="Admin">Admin</option>
+                  <option value="User">User</option>
+                  <option value="Trainer">Trainer</option>
+                  <option value="Receptionist">Receptionist</option>
+                  <option value="Manager">Manager</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="Phone Number"
+                  value={editingUser.number}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, number: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Password"
+                  value={editingUser.password}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, password: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <select
+                  value={editingUser.gender}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, gender: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                >
+                  <option value="">Select Gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                <input
+                  type="number"
+                  placeholder="Age"
+                  value={editingUser.age}
+                  onChange={(e) =>
+                    setEditingUser({ ...editingUser, age: e.target.value })
+                  }
+                  className="p-2 border rounded w-full"
+                  required
+                />
+                <div className="flex flex-wrap gap-2">
+                  {allPermissions.map((perm) => (
+                    <label key={perm} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editingUser.permissions.includes(perm)}
+                        onChange={() => toggleEditPermission(perm)}
+                        className="mr-1"
+                      />
+                      {formatPermission(perm)}
+                    </label>
+                  ))}
+                </div>
                 <button
                   type="submit"
                   className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
