@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import axios from 'axios';
 import { FaSearch } from 'react-icons/fa';
