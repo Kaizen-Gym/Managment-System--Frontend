@@ -81,12 +81,22 @@ const MemberProfile = ({ memberNumber }) => {
     }
   };
 
+  // Updated: Added validations and ensure numeric conversion.
   const handleRenewalDueAmountChange = (e) => {
-    const dueAmount = parseFloat(e.target.value) || 0;
+    const value = parseFloat(e.target.value);
+    if (isNaN(value)) return;
+    if (value < 0) {
+      alert('Due amount cannot be negative');
+      return;
+    }
+    if (value > memberData.membership_amount) {
+      alert('Due amount cannot exceed total membership payment');
+      return;
+    }
     setMemberData({
       ...memberData,
-      membership_due_amount: e.target.value,
-      membership_payment_status: dueAmount > 0 ? 'Pending' : 'Paid',
+      membership_due_amount: value,
+      membership_payment_status: value > 0 ? 'Pending' : 'Paid',
     });
   };
 
@@ -113,10 +123,10 @@ const MemberProfile = ({ memberNumber }) => {
         setShowSuccessfullPayment(true);
         setIsPayDueModalOpen(false);
         await fetchMemberData();
-        
+
         setTimeout(() => {
           setShowSuccessfullPayment(false);
-        }, 1500); 
+        }, 1500);
       }
     } catch (error) {
       setShowSuccessfullPayment(false);
@@ -125,15 +135,29 @@ const MemberProfile = ({ memberNumber }) => {
     }
   };
 
-  // Opens the renewal modal
+  // Opens the renewal modal and resets due amount to 0 so the user must explicitly set it
   const handleRenewMembership = async (member) => {
-    setMemberData(member);
+    setMemberData({ ...member, membership_due_amount: 0 }); // reset due amount
     setIsRenewalOpen(true);
   };
 
-  // Handles form submission in the renewal modal
+  // Handles form submission in the renewal modal with added validations and calculation
   const handleRenewMember = async (e) => {
     e.preventDefault();
+    const dueAmount = parseFloat(memberData.membership_due_amount) || 0;
+    // Validation: cannot be negative or exceed total membership_amount
+    if (dueAmount < 0) {
+      alert('Due amount cannot be negative');
+      return;
+    }
+    if (dueAmount > memberData.membership_amount) {
+      alert('Due amount cannot exceed total membership payment');
+      return;
+    }
+    // Calculate actual amount paid this renewal
+    const actualPaid = memberData.membership_amount - dueAmount;
+    const paymentStatus = dueAmount > 0 ? 'Pending' : 'Paid';
+
     try {
       const token = localStorage.getItem('token');
       await axios.post(
@@ -142,9 +166,12 @@ const MemberProfile = ({ memberNumber }) => {
           number: memberData.number,
           membership_type: memberData.membership_type,
           membership_amount: memberData.membership_amount,
-          membership_payment_status: memberData.membership_payment_status,
-          membership_due_amount: memberData.membership_due_amount,
+          // Send the updated payment status and due amount
+          membership_payment_status: paymentStatus,
+          membership_due_amount: dueAmount,
           membership_payment_mode: memberData.membership_payment_mode,
+          // Include actual amount paid (if needed by backend)
+          actual_amount_paid: actualPaid,
         },
         {
           headers: {
@@ -152,7 +179,7 @@ const MemberProfile = ({ memberNumber }) => {
           },
         }
       );
-      fetchMemberData();
+      await fetchMemberData();
       setIsRenewalOpen(false);
       setShowSuccessfullPayment(true);
       setTimeout(() => {
@@ -214,6 +241,17 @@ const MemberProfile = ({ memberNumber }) => {
   if (error) return <div>Error: {error}</div>;
   if (!memberData) return <div>No member data found</div>;
 
+  // AGGREGATE: Calculate totals from all payment records
+  const aggregateTotalAmount = payments.reduce(
+    (sum, payment) => sum + (payment.membership_amount || 0),
+    0
+  );
+  const aggregateTotalDue = payments.reduce(
+    (sum, payment) => sum + (payment.membership_due_amount || 0),
+    0
+  );
+  const aggregateTotalPaid = aggregateTotalAmount - aggregateTotalDue;
+
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6">
@@ -259,8 +297,8 @@ const MemberProfile = ({ memberNumber }) => {
                   memberData.membership_status.toLowerCase() === 'active'
                     ? 'text-green-600'
                     : memberData.membership_status.toLowerCase() === 'expired'
-                      ? 'text-red-600'
-                      : 'text-yellow-600'
+                    ? 'text-red-600'
+                    : 'text-yellow-600'
                 }`}
               >
                 {memberData.membership_status}
@@ -270,6 +308,15 @@ const MemberProfile = ({ memberNumber }) => {
               <p className="text-gray-600">Expiry Date</p>
               <p className="font-medium">
                 {new Date(memberData.membership_end_date).toLocaleDateString()}
+              </p>
+            </div>
+            {/* AGGREGATE: Show overall payment summary from all renewals */}
+            <div>
+              <p className="text-gray-600">Payment Summary</p>
+              <p className="font-medium">
+                {aggregateTotalDue > 0
+                  ? `Paid ₹${aggregateTotalPaid.toFixed(2)} / Total ₹${aggregateTotalAmount.toFixed(2)}`
+                  : 'Fully Paid'}
               </p>
             </div>
           </div>
@@ -339,8 +386,8 @@ const MemberProfile = ({ memberNumber }) => {
               </span>
             </button>
 
-            {/* Pay Due - styled like the other buttons */}
-            {memberData.member_total_due_amount > 0 && (
+            {/* AGGREGATE: Use aggregated due amount for the Pay Due button */}
+            {aggregateTotalDue > 0 && (
               <button
                 onClick={() => setIsPayDueModalOpen(true)}
                 className="relative group flex items-center justify-center p-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors duration-200"
@@ -348,7 +395,7 @@ const MemberProfile = ({ memberNumber }) => {
               >
                 <FaMoneyBillWave className="text-xl" />
                 <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-black rounded opacity-0 group-hover:opacity-100 whitespace-nowrap transition-opacity duration-200">
-                  Pay Due (₹{memberData.member_total_due_amount})
+                  Pay Due (₹{aggregateTotalDue})
                 </span>
               </button>
             )}
@@ -497,6 +544,8 @@ const MemberProfile = ({ memberNumber }) => {
                           ...memberData,
                           membership_type: e.target.value,
                           membership_amount: selectedPlan?.price,
+                          // Reset due amount when plan changes
+                          membership_due_amount: 0,
                         });
                       }}
                     >
@@ -515,6 +564,7 @@ const MemberProfile = ({ memberNumber }) => {
                     </label>
                     <input
                       type="number"
+                      min="0"
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={memberData?.membership_due_amount || 0}
                       onChange={handleRenewalDueAmountChange}
@@ -584,7 +634,7 @@ const MemberProfile = ({ memberNumber }) => {
                       Total Due Amount
                     </label>
                     <p className="text-lg font-semibold text-red-600">
-                      ₹{memberData.member_total_due_amount}
+                      ₹{aggregateTotalDue}
                     </p>
                   </div>
 
@@ -594,7 +644,7 @@ const MemberProfile = ({ memberNumber }) => {
                     </label>
                     <input
                       type="number"
-                      max={memberData.member_total_due_amount}
+                      max={aggregateTotalDue}
                       required
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={duePayment.amount}
