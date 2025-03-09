@@ -17,6 +17,8 @@ import {
   FaCalendarPlus, // For Complimentary Days
   FaArrowCircleUp, // For Membership Upgrade
   FaFileImage, // For Membership Form
+  FaChevronDown, // For collapse/expand icon
+  FaChevronUp, // For collapse/expand icon
 } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 import { useNavigate } from 'react-router-dom';
@@ -64,7 +66,11 @@ const MemberProfile = ({ memberNumber }) => {
 
   // State for Edit Member Modal
   const [editMemberData, setEditMemberData] = useState({});
-  
+
+  // State for Collapsible sections
+  const [isPaymentHistoryCollapsed, setIsPaymentHistoryCollapsed] = useState(true);
+  const [isAttendanceRecordsCollapsed, setIsAttendanceRecordsCollapsed] = useState(true);
+
   // navigate
   const navigate = useNavigate();
 
@@ -428,6 +434,16 @@ const MemberProfile = ({ memberNumber }) => {
     // No need to fetchMemberData as printing card is likely a client-side action.
   };
 
+  // Collapse/Expand Handlers
+  const togglePaymentHistoryCollapse = () => {
+    setIsPaymentHistoryCollapsed(!isPaymentHistoryCollapsed);
+  };
+
+  const toggleAttendanceRecordsCollapse = () => {
+    setIsAttendanceRecordsCollapsed(!isAttendanceRecordsCollapsed);
+  };
+
+
   useEffect(() => {
     fetchMemberData();
     fetchMembershipPlans();
@@ -670,89 +686,105 @@ const MemberProfile = ({ memberNumber }) => {
 
         {/* Payment History */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Payment History</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {payments.map((payment) => (
-                  <tr key={payment._id}>
-                    <td className="px-6 py-4">
-                      {new Date(
-                        payment.membership_payment_date
-                      ).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      ₹{payment.membership_amount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          payment.membership_payment_status.toLowerCase() ===
-                          'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
-                        {payment.membership_payment_status}
-                      </span>
-                    </td>
+          <h3
+            className="text-lg font-semibold mb-4 cursor-pointer flex justify-between items-center"
+            onClick={togglePaymentHistoryCollapse}
+          >
+            <span>Payment History</span>
+            {isPaymentHistoryCollapsed ? <FaChevronDown /> : <FaChevronUp />}
+          </h3>
+          {!isPaymentHistoryCollapsed && (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Status
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {payments.map((payment) => (
+                    <tr key={payment._id}>
+                      <td className="px-6 py-4">
+                        {new Date(
+                          payment.membership_payment_date
+                        ).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        ₹{payment.membership_amount.toFixed(2)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                            payment.membership_payment_status.toLowerCase() ===
+                            'paid'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-red-100 text-red-800'
+                          }`}
+                        >
+                          {payment.membership_payment_status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Attendance Records */}
         <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Attendance Records</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Check In
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Check Out
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {attendance.map((record) => (
-                  <tr key={record._id}>
-                    <td className="px-6 py-4">
-                      {new Date(record.checkIn).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      {new Date(record.checkIn).toLocaleTimeString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      {record.checkOut
-                        ? new Date(record.checkOut).toLocaleTimeString()
-                        : '-'}
-                    </td>
+          <h3
+            className="text-lg font-semibold mb-4 cursor-pointer flex justify-between items-center"
+            onClick={toggleAttendanceRecordsCollapse}
+          >
+            <span>Attendance Records</span>
+            {isAttendanceRecordsCollapsed ? <FaChevronDown /> : <FaChevronUp />}
+          </h3>
+          {!isAttendanceRecordsCollapsed && (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Check In
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Check Out
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {attendance.map((record) => (
+                    <tr key={record._id}>
+                      <td className="px-6 py-4">
+                        {new Date(record.checkIn).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {new Date(record.checkIn).toLocaleTimeString()}
+                      </td>
+                      <td className="px-6 py-4">
+                        {record.checkOut
+                          ? new Date(record.checkOut).toLocaleTimeString()
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
