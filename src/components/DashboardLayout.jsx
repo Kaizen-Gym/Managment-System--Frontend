@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import PropTypes from "prop-types";
 import {
@@ -11,10 +10,12 @@ import {
   FaTimes,
   FaCreditCard,
   FaBars,
+  FaUserShield,
 } from "react-icons/fa";
 import axios from "axios";
-
+import usePermissions from "../hooks/usePermissions";
 import MemberProfile from "./MembersSection/MemberProfile";
+import { UserContext } from "../context/UserContext.jsx";
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -22,34 +23,41 @@ const DashboardLayout = ({ children }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [members, setMembers] = useState([]);
+  /* eslint-disable no-unused-vars */
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedMemberNumber, setSelectedMemberNumber] = useState(null);
 
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const { user } = useContext(UserContext);
 
   useEffect(() => {
+    console.debug("DashboardLayout mounted: fetching members");
     fetchMembers();
   }, []);
 
   const fetchMembers = async () => {
     try {
       const token = localStorage.getItem("token");
+      console.debug("fetchMembers: token", token);
       const response = await axios.get("http://localhost:5050/api/member/members", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      console.debug("fetchMembers: response data", response.data);
       setMembers(response.data.members);
       setLoading(false);
     } catch (err) {
+      console.error("Error fetching members:", err);
       setError("Failed to fetch members");
       setLoading(false);
-      console.error("Error fetching members:", err);
     }
   };
 
   const handleSearch = (term) => {
+    console.debug("handleSearch: term", term);
     setSearchTerm(term);
     setIsSearching(!!term);
 
@@ -67,10 +75,12 @@ const DashboardLayout = ({ children }) => {
       );
     });
 
+    console.debug("handleSearch: filtered results", filtered);
     setSearchResults(filtered);
   };
 
   const handleBack = () => {
+    console.debug("handleBack: clearing selected member");
     setSelectedMemberNumber(null);
   };
 
@@ -79,28 +89,44 @@ const DashboardLayout = ({ children }) => {
       icon: <FaHome className="w-5 h-5" />,
       title: "Dashboard",
       path: "/dashboard",
+      permission: "view_dashboard",
     },
     {
       icon: <FaUsers className="w-5 h-5" />,
       title: "Members",
       path: "/dashboard/members",
+      permission: "view_members",
     },
     {
       icon: <FaChartBar className="w-5 h-5" />,
       title: "Reports",
       path: "/dashboard/reports",
+      permission: "view_reports",
     },
     {
       icon: <FaCreditCard className="w-5 h-5" />,
       title: "Membership-Plans",
       path: "/dashboard/membership-plans",
+      permission: "view_membership_plans",
+    },
+    {
+      icon: <FaUserShield className="w-5 h-5" />,
+      title: "User Management",
+      path: "/dashboard/user-management",
+      permission: "manage_users",
     },
     {
       icon: <FaCog className="w-5 h-5" />,
       title: "Settings",
       path: "/dashboard/settings",
+      permission: "view_settings",
     },
   ];
+
+  // Optionally, if no user is found, prompt the user to log in.
+  if (!user) {
+    return <div>Please log in to access the dashboard.</div>;
+  }
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -117,7 +143,10 @@ const DashboardLayout = ({ children }) => {
           <span className="text-2xl font-bold text-white">Kaizen</span>
           <button
             className="md:hidden text-white"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => {
+              console.debug("Sidebar: Closing sidebar");
+              setSidebarOpen(false);
+            }}
           >
             <FaTimes className="w-6 h-6" />
           </button>
@@ -125,16 +154,25 @@ const DashboardLayout = ({ children }) => {
 
         {/* Navigation Items */}
         <nav className="mt-4">
-          {menuItems.map((item, index) => (
-            <Link
-              key={index}
-              to={item.path}
-              className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
-            >
-              {item.icon}
-              <span className="ml-3">{item.title}</span>
-            </Link>
-          ))}
+          {menuItems.map((item, index) => {
+            const permissionGranted = hasPermission(item.permission);
+            console.debug(
+              `Menu item [${item.title}]: permission (${item.permission}) granted?`,
+              permissionGranted
+            );
+            return (
+              permissionGranted && (
+                <Link
+                  key={index}
+                  to={item.path}
+                  className="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                >
+                  {item.icon}
+                  <span className="ml-3">{item.title}</span>
+                </Link>
+              )
+            );
+          })}
         </nav>
       </div>
 
@@ -144,7 +182,13 @@ const DashboardLayout = ({ children }) => {
         <header className="bg-white shadow-sm">
           <div className="flex items-center justify-between h-16 px-4">
             {/* Sidebar Toggle Button (Mobile) */}
-            <button className="md:hidden" onClick={() => setSidebarOpen(true)}>
+            <button
+              className="md:hidden"
+              onClick={() => {
+                console.debug("Sidebar: Opening sidebar");
+                setSidebarOpen(true);
+              }}
+            >
               <FaBars className="w-6 h-6" />
             </button>
 
@@ -170,6 +214,7 @@ const DashboardLayout = ({ children }) => {
                       key={index}
                       className="block px-4 py-3 text-gray-700 hover:bg-gray-100 cursor-pointer"
                       onClick={() => {
+                        console.debug("Member selected:", member);
                         setSelectedMemberNumber(member.number);
                         setIsSearching(false);
                       }}
@@ -185,14 +230,15 @@ const DashboardLayout = ({ children }) => {
 
         {/* Main Page Content */}
         <main className="p-6 flex-1 overflow-auto">
-          {/* The main dashboard children content */}
           {children}
 
-          {/* Show Member Profile Below the Dashboard (if a member is selected) */}
           {selectedMemberNumber && (
             <div className="mt-6 bg-white p-4 rounded shadow">
               <button
-                onClick={handleBack}
+                onClick={() => {
+                  console.debug("Clearing selected member");
+                  handleBack();
+                }}
                 className="mb-4 px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800"
               >
                 ← Back to Members List

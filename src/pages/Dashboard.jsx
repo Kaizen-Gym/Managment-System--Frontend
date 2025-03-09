@@ -22,6 +22,7 @@ import PropTypes from 'prop-types';
 //Components
 import DashboardLayout from '../components/DashboardLayout';
 import SuccessfullPayment from '../components/Animations/SuccessfulPayment';
+import ErrorAnimation from '../components/Animations/ErrorAnimation';
 
 function Dashboard() {
   const [members, setMembers] = useState([]);
@@ -70,6 +71,10 @@ function Dashboard() {
     membership_payment_date: new Date().toISOString().split('T')[0],
   });
   const [showSuccessfullPayment, setShowSuccessfullPayment] = useState(false);
+  const [errorAnimation, setErrorAnimation] = useState({
+    show: false,
+    message: '',
+  });
 
   useEffect(() => {
     fetchMembers();
@@ -247,13 +252,25 @@ function Dashboard() {
         newMember.membership_due_amount = 0;
       }
 
-      await axios.post('http://localhost:5050/api/member/signup', newMember, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      // convert membership
+      newMember.membership_due_amount = parseFloat(
+        newMember.membership_due_amount
+      );
+
+      console.log(newMember);
+
+      const response = await axios.post(
+        'http://localhost:5050/api/member/signup',
+        newMember,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setIsAddMemberOpen(false);
       fetchMembers(); // Refresh the list
+      fetchDashboardStats();
       setNewMember({
         // Reset form
         name: '',
@@ -267,8 +284,21 @@ function Dashboard() {
         membership_payment_mode: 'Cash',
         membership_payment_date: new Date().toISOString().split('T')[0],
       });
+
+      if (response.status === 201) {
+        setShowSuccessfullPayment(true);
+
+        setTimeout(() => {
+          setShowSuccessfullPayment(false);
+        }, 1500);
+      }
     } catch (err) {
       console.error('Error adding new member:', err);
+      setErrorAnimation({
+        show: true,
+        message: `An error occurred while adding the member. Contact Support!`,
+      });
+      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
   };
 
@@ -352,7 +382,7 @@ function Dashboard() {
       </span>
     );
   };
-  
+
   PaymentStatusBadge.propTypes = {
     status: PropTypes.oneOf(['Paid', 'Pending']).isRequired,
   };
@@ -404,10 +434,10 @@ function Dashboard() {
         await fetchMembers(); // Refresh the members list
         setIsRenewModalOpen(false);
         setShowSuccessfullPayment(true);
-        
+
         setTimeout(() => {
           setShowSuccessfullPayment(false);
-        }, 1500); 
+        }, 1500);
       }
     } catch (err) {
       console.error('Error renewing membership:', err.response?.data || err);
@@ -436,7 +466,6 @@ function Dashboard() {
       );
       fetchMembers();
       setIsEditModalOpen(false);
-      
     } catch (err) {
       console.error('Error updating member:', err);
     }
@@ -1449,12 +1478,11 @@ function Dashboard() {
       )}
 
       <SuccessfullPayment show={showSuccessfullPayment} />
+      
+      {/* Place the ErrorAnimation component at the root level so it's always rendered */}
+      <ErrorAnimation show={errorAnimation.show} message={errorAnimation.message} />
     </div> /* This is the closing div of your main flex container */
   );
-  
 }
-
-
-
 
 export default Dashboard;
