@@ -4,9 +4,14 @@ import { Dialog, DialogPanel } from '@headlessui/react';
 import { FaEdit, FaTrash, FaUsers } from 'react-icons/fa';
 import ErrorAnimation from '../components/Animations/ErrorAnimation';
 
+//hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 const API_BASE = 'http://localhost:5050';
 
 const UserManagement = () => {
+  usePermissionCheck('manage_users', '/dashboard');  // Requires 'view_users' permission// Requires 'manage_users' permission. Redirect to dashboard if not allowed
+
   // States for users
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -54,6 +59,7 @@ const UserManagement = () => {
     'view_membership_plans',
     'view_settings',
     'manage_users',
+    'view_payment_records',
   ];
 
   useEffect(() => {

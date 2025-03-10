@@ -4,7 +4,12 @@ import axios from 'axios';
 import { FaSearch } from 'react-icons/fa';
 import moment from 'moment';
 
+//hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 const PaymentRecord = () => {
+  usePermissionCheck('view_payment_records'); // Requires 'view_payment_records' permission
+
   const [records, setRecords] = useState([]);
   const [filteredRecords, setFilteredRecords] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');

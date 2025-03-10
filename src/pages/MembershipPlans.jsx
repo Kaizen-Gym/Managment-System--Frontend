@@ -6,7 +6,12 @@ import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
 
+//hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 function MembershipPlans() {
+  usePermissionCheck('view_membership_plans'); // Requires 'view_membership_plans' permission
+  
   const [plans, setPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
