@@ -1,11 +1,18 @@
 /* eslint-disable no-unused-vars */
 
 import React, { useState } from 'react';
+
+// components
 import DashboardLayout from '../components/DashboardLayout';
 import MembersList from '../components/MembersSection/MembersList';
 import MemberProfile from '../components/MembersSection/MemberProfile';
 
+// hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 const Members = () => {
+  usePermissionCheck('view_members');  // Requires 'view_members' permission
+  
   const [loading, setLoading] = useState(false);
   const [selectedMemberNumber, setSelectedMemberNumber] = useState(null);
 

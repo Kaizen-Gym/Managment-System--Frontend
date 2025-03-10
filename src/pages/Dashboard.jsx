@@ -24,7 +24,11 @@ import DashboardLayout from '../components/DashboardLayout';
 import SuccessfullPayment from '../components/Animations/SuccessfulPayment';
 import ErrorAnimation from '../components/Animations/ErrorAnimation';
 
+//hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 function Dashboard() {
+  usePermissionCheck('view_dashboard')
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

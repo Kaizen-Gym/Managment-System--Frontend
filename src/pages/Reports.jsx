@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
-import DashboardLayout from "../components/DashboardLayout";
 import {
   FaChartLine,
   FaChartPie,
@@ -22,7 +21,15 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+//components
+import DashboardLayout from "../components/DashboardLayout";
+
+//hooks
+import usePermissionCheck from '../hooks/usePermissionCheck';
+
 function Reports() {
+  usePermissionCheck('view_reports');  // Requires 'view_reports' permission
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reportData, setReportData] = useState({

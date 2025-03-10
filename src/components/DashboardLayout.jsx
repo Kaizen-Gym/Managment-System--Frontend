@@ -11,6 +11,7 @@ import {
   FaCreditCard,
   FaBars,
   FaUserShield,
+  FaMoneyBillAlt,
 } from "react-icons/fa";
 import axios from "axios";
 import usePermissions from "../hooks/usePermissions";
@@ -114,6 +115,12 @@ const DashboardLayout = ({ children }) => {
       title: "User Management",
       path: "/dashboard/user-management",
       permission: "manage_users",
+    },
+    {
+      icon: <FaMoneyBillAlt className="w-5 h-5" />,
+      title: "Payment Record",
+      path: "/dashboard/payment-record",
+      permission: "view_payment_record",
     },
     {
       icon: <FaCog className="w-5 h-5" />,
