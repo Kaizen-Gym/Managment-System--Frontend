@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   FaUsers,
   FaUser,
@@ -18,6 +18,7 @@ import {
 import axios from 'axios';
 import { Dialog, DialogPanel } from '@headlessui/react';
 import PropTypes from 'prop-types';
+import ReactWebcam from 'react-webcam';
 
 //Components
 import DashboardLayout from '../components/DashboardLayout';
@@ -28,7 +29,7 @@ import ErrorAnimation from '../components/Animations/ErrorAnimation';
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
 function Dashboard() {
-  usePermissionCheck('view_dashboard')
+  usePermissionCheck('view_dashboard');
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,12 +80,26 @@ function Dashboard() {
     show: false,
     message: '',
   });
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const webcamRef = React.useRef(null);
 
   useEffect(() => {
     fetchMembers();
     fetchDashboardStats();
     fetchMembershipPlans();
   }, []);
+
+  const handleToggleCamera = () => {
+    setIsCameraOpen(!isCameraOpen);
+  };
+
+  const capture = useCallback(() => {
+    const imageSrc = webcamRef.current.getScreenshot();
+    setCapturedImage(imageSrc);
+    setNewMember({ ...newMember, photo: imageSrc }); // Store in `newMember` state
+    setIsCameraOpen(false);
+  }, [webcamRef, newMember]);
 
   const fetchMembers = async () => {
     try {
@@ -261,17 +276,45 @@ function Dashboard() {
         newMember.membership_due_amount
       );
 
-      console.log(newMember);
+      const formData = new FormData(); // Use FormData to send files
+      formData.append('name', newMember.name);
+      formData.append('number', newMember.number);
+      formData.append('gender', newMember.gender);
+      formData.append('age', newMember.age);
+      formData.append('email', newMember.email);
+      formData.append('membership_type', newMember.membership_type);
+      formData.append('membership_amount', newMember.membership_amount);
+      formData.append('membership_due_amount', newMember.membership_due_amount);
+      formData.append(
+        'membership_payment_status',
+        newMember.membership_payment_status
+      );
+      formData.append(
+        'membership_payment_mode',
+        newMember.membership_payment_mode
+      );
+      formData.append(
+        'membership_payment_date',
+        newMember.membership_payment_date
+      );
+
+      if (newMember.photo) {
+        // Convert the base64 image to a Blob
+        const blob = await (await fetch(newMember.photo)).blob();
+        formData.append('photo', blob, 'captured_image.jpeg'); // or 'captured_image.png'
+      }
 
       const response = await axios.post(
         'http://localhost:5050/api/member/signup',
-        newMember,
+        formData,
         {
           headers: {
             Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data', // Important for FormData
           },
         }
       );
+
       setIsAddMemberOpen(false);
       fetchMembers(); // Refresh the list
       fetchDashboardStats();
@@ -287,7 +330,9 @@ function Dashboard() {
         membership_payment_status: 'Paid',
         membership_payment_mode: 'Cash',
         membership_payment_date: new Date().toISOString().split('T')[0],
+        photo: null, // Reset photo
       });
+      setCapturedImage(null);
 
       if (response.status === 201) {
         setShowSuccessfullPayment(true);
@@ -855,6 +900,7 @@ function Dashboard() {
                       Membership Details
                     </h3>
 
+                    {/* Membership Type */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         <span className="flex items-center">
@@ -988,6 +1034,46 @@ function Dashboard() {
                           })
                         }
                       />
+                    </div>
+
+                    {/* Camera and Image Preview */}
+                    <div className="mb-4">
+                      <button
+                        type="button"
+                        onClick={handleToggleCamera}
+                        className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200"
+                      >
+                        {isCameraOpen ? 'Close Camera' : 'Open Camera'}
+                      </button>
+
+                      {isCameraOpen && (
+                        <div className="mt-2">
+                          <ReactWebcam
+                            audio={false}
+                            ref={webcamRef}
+                            screenshotFormat="image/jpeg"
+                            width={320}
+                            height={240}
+                            className="rounded-lg"
+                          />
+                          <button
+                            onClick={capture}
+                            className="mt-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-200 block"
+                          >
+                            Capture Photo
+                          </button>
+                        </div>
+                      )}
+
+                      {capturedImage && (
+                        <div className="mt-2">
+                          <img
+                            src={capturedImage}
+                            alt="Captured"
+                            className="rounded-lg w-80 h-60 object-cover"
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1482,9 +1568,12 @@ function Dashboard() {
       )}
 
       <SuccessfullPayment show={showSuccessfullPayment} />
-      
+
       {/* Place the ErrorAnimation component at the root level so it's always rendered */}
-      <ErrorAnimation show={errorAnimation.show} message={errorAnimation.message} />
+      <ErrorAnimation
+        show={errorAnimation.show}
+        message={errorAnimation.message}
+      />
     </div> /* This is the closing div of your main flex container */
   );
 }

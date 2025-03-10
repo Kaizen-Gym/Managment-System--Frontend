@@ -45,9 +45,12 @@ const MemberProfile = ({ memberNumber }) => {
   const [isEditMemberModalOpen, setIsEditMemberModalOpen] = useState(false);
   const [isDeleteMemberModalOpen, setIsDeleteMemberModalOpen] = useState(false);
   const [isTransferDaysModalOpen, setIsTransferDaysModalOpen] = useState(false);
-  const [isComplimentaryDaysModalOpen, setIsComplimentaryDaysModalOpen] = useState(false);
-  const [isMembershipUpgradeModalOpen, setIsMembershipUpgradeModalOpen] = useState(false);
-  const [isMembershipFormModalOpen, setIsMembershipFormModalOpen] = useState(false);
+  const [isComplimentaryDaysModalOpen, setIsComplimentaryDaysModalOpen] =
+    useState(false);
+  const [isMembershipUpgradeModalOpen, setIsMembershipUpgradeModalOpen] =
+    useState(false);
+  const [isMembershipFormModalOpen, setIsMembershipFormModalOpen] =
+    useState(false);
 
   // State for Transfer Days Modal
   const [transferDaysData, setTransferDaysData] = useState({
@@ -68,11 +71,42 @@ const MemberProfile = ({ memberNumber }) => {
   const [editMemberData, setEditMemberData] = useState({});
 
   // State for Collapsible sections
-  const [isPaymentHistoryCollapsed, setIsPaymentHistoryCollapsed] = useState(true);
-  const [isAttendanceRecordsCollapsed, setIsAttendanceRecordsCollapsed] = useState(true);
+  const [isPaymentHistoryCollapsed, setIsPaymentHistoryCollapsed] =
+    useState(true);
+  const [isAttendanceRecordsCollapsed, setIsAttendanceRecordsCollapsed] =
+    useState(true);
 
   // navigate
   const navigate = useNavigate();
+
+  const bufferToImageUrl = (buffer, contentType) => {
+    if (!buffer || !contentType) {
+      return null; // Optionally return a default image URL
+    }
+    try {
+      // Sometimes the actual data is nested (i.e., buffer.data.data)
+      let data = buffer.data;
+      if (data && data.data) {
+        data = data.data;
+      }
+
+      // Convert the array of bytes to a Uint8Array
+      const uint8Array = new Uint8Array(data);
+
+      // Convert bytes to a binary string using a loop (avoiding potential issues with spread operator on large arrays)
+      let binaryString = '';
+      for (let i = 0; i < uint8Array.length; i++) {
+        binaryString += String.fromCharCode(uint8Array[i]);
+      }
+
+      // Convert binary string to base64
+      const base64 = btoa(binaryString);
+      return `data:${contentType};base64,${base64}`;
+    } catch (error) {
+      console.error('Error converting buffer to image URL:', error);
+      return null;
+    }
+  };
 
   const fetchMemberData = useCallback(async () => {
     if (!memberNumber) {
@@ -254,7 +288,6 @@ const MemberProfile = ({ memberNumber }) => {
     }
   };
 
-
   // --- New Action Handlers ---
   const handleEditMemberModal = () => {
     setIsEditMemberModalOpen(true);
@@ -308,7 +341,6 @@ const MemberProfile = ({ memberNumber }) => {
       alert(error.response?.data?.message || 'Error editing member');
     }
   };
-
 
   const handleDeleteMember = async () => {
     try {
@@ -418,7 +450,6 @@ const MemberProfile = ({ memberNumber }) => {
     }
   };
 
-
   const handleCheckPaymentStatus = (member) => {
     console.log('Check payment status for:', member);
     // No need to fetchMemberData here unless payment status is displayed and needs immediate update.
@@ -442,7 +473,6 @@ const MemberProfile = ({ memberNumber }) => {
   const toggleAttendanceRecordsCollapse = () => {
     setIsAttendanceRecordsCollapsed(!isAttendanceRecordsCollapsed);
   };
-
 
   useEffect(() => {
     fetchMemberData();
@@ -468,6 +498,19 @@ const MemberProfile = ({ memberNumber }) => {
 
         {/* Personal Information */}
         <div className="mb-8">
+          {/* Image */}
+          {memberData.photo && (
+            <div>
+              <img
+                src={bufferToImageUrl(
+                  memberData.photo,
+                  memberData.photo.contentType
+                )}
+                alt="Member"
+                className="w-48 h-48 object-cover rounded-full"
+              />
+            </div>
+          )}
           <h3 className="text-lg font-semibold mb-4">Personal Information</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -491,51 +534,12 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </div>
 
-        {/* Membership Details */}
-        <div className="mb-8">
-          <h3 className="text-lg font-semibold mb-4">Membership Details</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-gray-600">Type</p>
-              <p className="font-medium">{memberData.membership_type}</p>
-            </div>
-            <div>
-              <p className="text-gray-600">Status</p>
-              <p
-                className={`font-medium ${
-                  memberData.membership_status.toLowerCase() === 'active'
-                    ? 'text-green-600'
-                    : memberData.membership_status.toLowerCase() === 'expired'
-                      ? 'text-red-600'
-                      : 'text-yellow-600'
-                }`}
-              >
-                {memberData.membership_status}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-600">Expiry Date</p>
-              <p className="font-medium">
-                {new Date(memberData.membership_end_date).toLocaleDateString()}
-              </p>
-            </div>
-            {/* AGGREGATE: Show overall payment summary from all renewals */}
-            <div>
-              <p className="text-gray-600">Overall Payment Status</p>
-              <p className="font-medium">
-                {aggregateTotalDue > 0 ? 'Partially Paid' : 'Fully Paid'}
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Action Buttons */}
         <div className="mb-8">
           <h3 className="text-lg font-semibold mb-4">Member Actions</h3>
           <div className="grid grid-cols-6 gap-2">
-
-             {/* Edit Member */}
-             <button
+            {/* Edit Member */}
+            <button
               onClick={handleEditMemberModal}
               className="relative group flex items-center justify-center p-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors duration-200"
               title="Edit Member"
@@ -582,8 +586,8 @@ const MemberProfile = ({ memberNumber }) => {
               </span>
             </button>
 
-             {/* Renew Membership */}
-             <button
+            {/* Renew Membership */}
+            <button
               onClick={() => handleRenewMembership(memberData)}
               className="relative group flex items-center justify-center p-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors duration-200"
               title="Renew Membership"
@@ -594,8 +598,8 @@ const MemberProfile = ({ memberNumber }) => {
               </span>
             </button>
 
-             {/* Membership Upgrade */}
-             <button
+            {/* Membership Upgrade */}
+            <button
               onClick={handleMembershipUpgradeModal}
               className="relative group flex items-center justify-center p-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors duration-200"
               title="Membership Upgrade"
@@ -605,7 +609,6 @@ const MemberProfile = ({ memberNumber }) => {
                 Membership Upgrade
               </span>
             </button>
-
 
             {/* Record Attendance */}
             {/* <button
@@ -618,7 +621,6 @@ const MemberProfile = ({ memberNumber }) => {
                 Record Attendance
               </span>
             </button> */}
-
 
             {/* Check Out */}
             {/* <button
@@ -802,7 +804,9 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
                 Renew Membership
               </Dialog.Title>
-              <form onSubmit={(e) => handleRenewMember(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handleRenewMember(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
@@ -879,7 +883,6 @@ const MemberProfile = ({ memberNumber }) => {
                     </select>
                   </div>
                 </div>
-
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"
@@ -915,7 +918,9 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-xl font-semibold mb-4">
                 Pay Due Amount
               </Dialog.Title>
-              <form onSubmit={(e) => handlePayDueSubmit(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handlePayDueSubmit(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700">
@@ -966,7 +971,6 @@ const MemberProfile = ({ memberNumber }) => {
                     </select>
                   </div>
                 </div>
-
                 <div className="mt-6 flex justify-end space-x-3">
                   <button
                     type="button"
@@ -1001,24 +1005,63 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
                 Edit Member Details
               </Dialog.Title>
-              <form onSubmit={(e) => handleEditMember(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handleEditMember(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
+                  {/* display image in edit modal */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Name</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Photo
+                    </label>
+                    <div>
+                      {console.log(
+                        'Image URL:',
+                        bufferToImageUrl(
+                          memberData.photo,
+                          memberData.photo.contentType
+                        )
+                      )}
+                      <img
+                        src={bufferToImageUrl(
+                          memberData.photo,
+                          memberData.photo.contentType
+                        )}
+                        alt="Member"
+                        className="w-48 h-48 object-cover rounded-full"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Name
+                    </label>
                     <input
                       type="text"
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={editMemberData.name || ''}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, name: e.target.value })}
+                      onChange={(e) =>
+                        setEditMemberData({
+                          ...editMemberData,
+                          name: e.target.value,
+                        })
+                      }
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Email</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Email
+                    </label>
                     <input
                       type="email"
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={editMemberData.email || ''}
-                      onChange={(e) => setEditMemberData({ ...editMemberData, email: e.target.value })}
+                      onChange={(e) =>
+                        setEditMemberData({
+                          ...editMemberData,
+                          email: e.target.value,
+                        })
+                      }
                     />
                   </div>
                   {/* Add other fields you want to edit similarly */}
@@ -1058,7 +1101,8 @@ const MemberProfile = ({ memberNumber }) => {
                 Confirm Delete Member
               </Dialog.Title>
               <Dialog.Description className="text-sm text-gray-500 mb-4">
-                Are you sure you want to delete member "{memberData.name}"? This action cannot be undone.
+                Are you sure you want to delete member "{memberData.name}"? This
+                action cannot be undone.
               </Dialog.Description>
               <div className="mt-6 flex justify-end space-x-3">
                 <button
@@ -1093,15 +1137,24 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
                 Transfer Membership Days
               </Dialog.Title>
-              <form onSubmit={(e) => handleTransferDays(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handleTransferDays(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Target Member Number</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Target Member Number
+                    </label>
                     <input
                       type="text"
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={transferDaysData.targetMemberNumber}
-                      onChange={(e) => setTransferDaysData({ ...transferDaysData, targetMemberNumber: e.target.value })}
+                      onChange={(e) =>
+                        setTransferDaysData({
+                          ...transferDaysData,
+                          targetMemberNumber: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -1139,16 +1192,25 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
                 Add Complimentary Days
               </Dialog.Title>
-              <form onSubmit={(e) => handleComplimentaryDays(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handleComplimentaryDays(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Number of Days</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Number of Days
+                    </label>
                     <input
                       type="number"
                       min="1"
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={complimentaryDaysData.days}
-                      onChange={(e) => setComplimentaryDaysData({ ...complimentaryDaysData, days: e.target.value })}
+                      onChange={(e) =>
+                        setComplimentaryDaysData({
+                          ...complimentaryDaysData,
+                          days: e.target.value,
+                        })
+                      }
                     />
                   </div>
                 </div>
@@ -1186,16 +1248,26 @@ const MemberProfile = ({ memberNumber }) => {
               <Dialog.Title className="text-lg font-medium text-gray-900 mb-4">
                 Upgrade Membership
               </Dialog.Title>
-              <form onSubmit={(e) => handleMembershipUpgrade(e)}> {/* Added e.preventDefault() here */}
+              <form onSubmit={(e) => handleMembershipUpgrade(e)}>
+                {' '}
+                {/* Added e.preventDefault() here */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">New Membership Type</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      New Membership Type
+                    </label>
                     <select
                       className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm"
                       value={upgradeMembershipData.membership_type}
-                      onChange={(e) => setUpgradeMembershipData({ ...upgradeMembershipData, membership_type: e.target.value })}
+                      onChange={(e) =>
+                        setUpgradeMembershipData({
+                          ...upgradeMembershipData,
+                          membership_type: e.target.value,
+                        })
+                      }
                     >
-                      <option value="">Select Plan</option> {/* Default option */}
+                      <option value="">Select Plan</option>{' '}
+                      {/* Default option */}
                       {availablePlans.map((plan) => (
                         <option key={plan._id} value={plan.name}>
                           {plan.name} - ₹{plan.price}
@@ -1224,7 +1296,6 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </Dialog>
       )}
-
 
       {/* Membership Form Modal - Placeholder */}
       {isMembershipFormModalOpen && (
@@ -1257,7 +1328,6 @@ const MemberProfile = ({ memberNumber }) => {
           </div>
         </Dialog>
       )}
-
 
       <SuccessfullPayment show={ShowSuccessfullPayment} />
     </div>
