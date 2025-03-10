@@ -13,22 +13,22 @@ const MembersList = ({ onSelectMember }) => {
   const [filterStatus, setFilterStatus] = useState('all');
 
   useEffect(() => {
-    fetchMembers();
-  }, []);
-
-  const fetchMembers = async () => {
-    try {
-      setLoading(true);
-      const data = await memberService.getAllMembers();
-      console.log('Fetched members:', data); // Add this for debugging
-      setMembers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error fetching members:', err);
-      setError('Failed to fetch members');
-    } finally {
-      setLoading(false);
-    }
-  };
+      const fetchMembers = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          // ✅ CORRECT FUNCTION CALL - USING getMembers (singular)
+          const response = await memberService.getMembers();
+          setMembers(response.members); // Assuming your backend returns members in response.members
+        } catch (error) {
+          console.error("Error fetching members:", error);
+          setError("Failed to fetch members");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchMembers();
+    }, []); // Empty dependency array to run only once on component mount
 
   if (loading) return <div className="text-center py-4">Loading...</div>;
   if (error) return <div className="text-center py-4 text-red-600">{error}</div>;
