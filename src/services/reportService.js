@@ -7,7 +7,10 @@ export const reportService = {
     const token = localStorage.getItem('token');
     const response = await axios.get(`${BASE_URL}/analytics/membership`, {
       headers: { Authorization: `Bearer ${token}` },
-      params
+      params: {
+        date: params.endDate,
+        interval: params.interval
+      }
     });
     return response.data;
   },
@@ -16,7 +19,10 @@ export const reportService = {
     const token = localStorage.getItem('token');
     const response = await axios.get(`${BASE_URL}/analytics/attendance`, {
       headers: { Authorization: `Bearer ${token}` },
-      params
+      params: {
+        date: params.endDate,
+        interval: params.interval
+      }
     });
     return response.data;
   },
@@ -25,7 +31,10 @@ export const reportService = {
     const token = localStorage.getItem('token');
     const response = await axios.get(`${BASE_URL}/analytics/financial`, {
       headers: { Authorization: `Bearer ${token}` },
-      params
+      params: {
+        date: params.endDate,
+        interval: params.interval
+      }
     });
     return response.data;
   }

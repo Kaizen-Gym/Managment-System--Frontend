@@ -12,7 +12,6 @@ import {
   FaUserMinus,
 } from 'react-icons/fa';
 import {
-  LineChart,
   Line,
   PieChart,
   Pie,
@@ -41,11 +40,8 @@ function Reports() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [dateRange, setDateRange] = useState({
-    startDate: new Date(new Date().setMonth(new Date().getMonth() - 1)),
-    endDate: new Date(),
-  });
-  const [interval, setInterval] = useState('monthly');
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [interval, setInterval] = useState('30'); // Default to 30 days
 
   const [analytics, setAnalytics] = useState({
     membership: null,
@@ -55,6 +51,32 @@ function Reports() {
 
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+  // Helper function to calculate the date range based on selected date and interval
+  const calculateDateRange = (date, intervalDays) => {
+    const endDate = new Date(date);
+    const startDate = new Date(date);
+    startDate.setDate(startDate.getDate() - parseInt(intervalDays));
+    return { startDate, endDate };
+  };
+
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    fetchAnalytics({
+      endDate: date,
+      interval: interval
+    });
+  };
+
+  // Add this function to handle interval changes
+  const handleIntervalChange = (e) => {
+    const newInterval = e.target.value;
+    setInterval(newInterval);
+    fetchAnalytics({
+      endDate: selectedDate,
+      interval: newInterval
+    });
+  };
 
   const getActiveMembers = (membershipData) => {
     if (!membershipData) return 0;
@@ -72,43 +94,33 @@ function Reports() {
     return 0;
   };
 
-  const fetchAnalytics = useCallback(async () => {
+  const fetchAnalytics = useCallback(async (params = null) => {
     try {
       setLoading(true);
-      const params = {
-        startDate: dateRange.startDate.toISOString(),
-        endDate: dateRange.endDate.toISOString(),
-        interval,
+      const queryParams = {
+        endDate: params?.endDate || selectedDate,
+        interval: params?.interval || interval
       };
-
-      const [membershipData, attendanceData, financialData] = await Promise.all(
-        [
-          reportService.getMembershipAnalytics(params),
-          reportService.getAttendanceAnalytics(params),
-          reportService.getFinancialAnalytics(params),
-        ]
-      );
-
-      console.log('Membership Analytics - Trends:', membershipData?.trends);
-      console.log(
-        'Membership Analytics - Retention:',
-        membershipData?.retention
-      );
-      console.log('Active Members Count:', getActiveMembers(membershipData));
-
+  
+      const [membershipData, attendanceData, financialData] = await Promise.all([
+        reportService.getMembershipAnalytics(queryParams),
+        reportService.getAttendanceAnalytics(queryParams),
+        reportService.getFinancialAnalytics(queryParams),
+      ]);
+  
       setAnalytics({
         membership: membershipData,
         attendance: attendanceData,
         financial: financialData,
       });
-
+  
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch analytics data');
       setLoading(false);
       console.error('Error fetching analytics:', err);
     }
-  }, [dateRange, interval]);
+  }, [selectedDate, interval]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -164,45 +176,48 @@ function Reports() {
             <div className="flex flex-col sm:flex-row items-end gap-4 bg-white p-4 rounded-lg shadow">
               <div className="w-full sm:w-72">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date Range
+                  End Date
                 </label>
                 <DatePicker
-                  selectsRange={true}
-                  startDate={dateRange.startDate}
-                  endDate={dateRange.endDate}
-                  onChange={(update) => {
-                    setDateRange({
-                      startDate: update[0],
-                      endDate: update[1],
-                    });
-                  }}
+                  selected={selectedDate}
+                  onChange={handleDateChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  placeholderText="Select date range"
                   dateFormat="MMM dd, yyyy"
+                  maxDate={new Date()} // Prevent future dates
+                  placeholderText="Select end date"
                 />
               </div>
 
               <div className="w-full sm:w-48">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Time Interval
+                  Time Period
                 </label>
                 <select
                   value={interval}
-                  onChange={(e) => setInterval(e.target.value)}
+                  onChange={handleIntervalChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white"
                 >
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
+                  <option value="15">Previous 15 Days</option>
+                  <option value="30">Previous 30 Days</option>
+                  <option value="90">Previous 90 Days</option>
                 </select>
               </div>
 
-              <button
-                onClick={fetchAnalytics}
-                className="w-full sm:w-auto px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Update Reports
-              </button>
+              <div className="w-full sm:w-auto flex items-center gap-2">
+                <div className="text-sm text-gray-500">
+                  {calculateDateRange(
+                    selectedDate,
+                    interval
+                  ).startDate.toLocaleDateString()}{' '}
+                  - {selectedDate.toLocaleDateString()}
+                </div>
+                <button
+                  onClick={() => fetchAnalytics()}
+                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Update Reports
+                </button>
+              </div>
             </div>
           </div>
 
