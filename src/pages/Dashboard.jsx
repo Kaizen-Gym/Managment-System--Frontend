@@ -14,6 +14,7 @@ import {
   FaUserPlus,
   FaExclamationTriangle,
   FaExclamationCircle,
+  FaMoneyBill,
 } from 'react-icons/fa';
 import axios from 'axios';
 import { Dialog, DialogPanel } from '@headlessui/react';
@@ -28,7 +29,7 @@ import ErrorAnimation from '../components/Animations/ErrorAnimation';
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
 function Dashboard() {
-  usePermissionCheck('view_dashboard')
+  usePermissionCheck('view_dashboard');
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -79,18 +80,72 @@ function Dashboard() {
     show: false,
     message: '',
   });
+  const [upcomingRenewals, setUpcomingRenewals] = useState({
+    renewals: [],
+    totalCount: 0,
+    totalExpectedRevenue: 0,
+  });
+  const [showUpcomingRenewalsModal, setShowUpcomingRenewalsModal] =
+    useState(false);
+  const [showDueDetailsModal, setShowDueDetailsModal] = useState(false);
+  const [dueDetails, setDueDetails] = useState({
+    members: [],
+    totalDue: 0,
+    statistics: {
+      averageDueAmount: 0,
+      highestDueAmount: 0,
+      lowestDueAmount: 0,
+    },
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
-    fetchMembers();
+    fetchMembers(currentPage, itemsPerPage);
     fetchDashboardStats();
     fetchMembershipPlans();
+    fetchUpcomingRenewals();
+    fetchDueDetails();
   }, []);
 
-  const fetchMembers = async () => {
+  const fetchUpcomingRenewals = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      console.log('Fetching upcoming renewals...');
+
+      const response = await axios.get(
+        'http://localhost:5050/api/reports/upcoming-renewals',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      console.log('Upcoming renewals response:', {
+        data: response.data,
+        status: response.status,
+      });
+
+      setUpcomingRenewals({
+        renewals: response.data.renewals || [],
+        totalCount: response.data.totalCount || 0,
+        totalExpectedRevenue: response.data.totalExpectedRevenue || 0,
+      });
+    } catch (err) {
+      console.error('Error fetching upcoming renewals:', {
+        message: err.message,
+        response: err.response?.data,
+      });
+    }
+  };
+
+  const fetchMembers = async (page = 1, limit = 10) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        'http://localhost:5050/api/member/members',
+        `http://localhost:5050/api/member/members?page=${page}&limit=${limit}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -98,6 +153,8 @@ function Dashboard() {
         }
       );
       setMembers(response.data.members);
+      setTotalPages(response.data.totalPages);
+      setCurrentPage(response.data.page);
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch members');
@@ -191,6 +248,7 @@ function Dashboard() {
       );
 
       if (response.data) {
+        await fetchDueDetails();
         setShowSuccessfullPayment(true);
         // Update the member list and stats
         await Promise.all([fetchMembers(), fetchDashboardStats()]);
@@ -205,6 +263,23 @@ function Dashboard() {
       setShowSuccessfullPayment(false);
       console.error('Error processing due payment:', error);
       alert(error.response?.data?.message || 'Error processing payment');
+    }
+  };
+
+  const fetchDueDetails = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        'http://localhost:5050/api/reports/due-details',
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setDueDetails(response.data);
+    } catch (err) {
+      console.error('Error fetching due details:', err);
     }
   };
 
@@ -435,7 +510,11 @@ function Dashboard() {
       );
 
       if (response.data) {
-        await fetchMembers(); // Refresh the members list
+        await Promise.all([
+          fetchMembers(),
+          fetchDashboardStats(),
+          fetchUpcomingRenewals(),
+        ]);
         setIsRenewModalOpen(false);
         setShowSuccessfullPayment(true);
 
@@ -585,7 +664,10 @@ function Dashboard() {
               </div>
 
               {/* Due Amount Widget */}
-              <div className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105">
+              <div
+                onClick={() => setShowDueDetailsModal(true)}
+                className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105"
+              >
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">
@@ -602,6 +684,30 @@ function Dashboard() {
                 <p className="text-sm text-gray-500 mt-2">
                   {dashboardStats.membersWithDue || 0} members with dues
                 </p>
+              </div>
+
+              {/* Upcoming Renewals Widget */}
+              <div
+                className="bg-white rounded-lg shadow p-6 transition-transform duration-200 hover:transform hover:scale-105 cursor-pointer"
+                onClick={() => setShowUpcomingRenewalsModal(true)}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">
+                      Upcoming Renewals
+                    </p>
+                    <h3 className="text-2xl font-bold text-gray-900 mt-2">
+                      {upcomingRenewals.totalCount}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-2">
+                      ₹{upcomingRenewals.totalExpectedRevenue.toLocaleString()}{' '}
+                      expected revenue
+                    </p>
+                  </div>
+                  <div className="bg-orange-100 p-3 rounded-full mt-1">
+                    <FaCalendar className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
               </div>
             </div>
             {/* Payment Methods Breakdown */}
@@ -721,6 +827,123 @@ function Dashboard() {
                     ))}
                   </tbody>
                 </table>
+                <div className="px-6 py-4 bg-white border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    {/* Entries per page selector and info */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <label
+                          htmlFor="itemsPerPage"
+                          className="text-sm text-gray-600 whitespace-nowrap"
+                        >
+                          Show:
+                        </label>
+                        <select
+                          id="itemsPerPage"
+                          value={itemsPerPage}
+                          onChange={(e) => {
+                            const newLimit = Math.min(
+                              Math.max(parseInt(e.target.value), 1),
+                              50
+                            );
+                            setItemsPerPage(newLimit);
+                            setCurrentPage(1);
+                            fetchMembers(1, newLimit);
+                          }}
+                          className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="5">5</option>
+                          <option value="10">10</option>
+                          <option value="25">25</option>
+                          <option value="50">50</option>
+                        </select>
+                        <span className="text-sm text-gray-600">entries</span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        Total: {members.length} members
+                      </div>
+                    </div>
+
+                    {/* Pagination controls */}
+                    <div className="flex items-center gap-4">
+                      <p className="text-sm text-gray-700 whitespace-nowrap">
+                        Page {currentPage} of {totalPages}
+                      </p>
+
+                      {/* Navigation buttons */}
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => {
+                            setCurrentPage(1);
+                            fetchMembers(1, itemsPerPage);
+                          }}
+                          disabled={currentPage === 1}
+                          className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                            currentPage === 1
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          First
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const newPage = Math.max(currentPage - 1, 1);
+                            setCurrentPage(newPage);
+                            fetchMembers(newPage, itemsPerPage);
+                          }}
+                          disabled={currentPage === 1}
+                          className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                            currentPage === 1
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                          }`}
+                        >
+                          Previous
+                        </button>
+
+                        <span className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-50 rounded-lg border border-gray-300">
+                          {currentPage}
+                        </span>
+
+                        <button
+                          onClick={() => {
+                            const newPage = Math.min(
+                              currentPage + 1,
+                              totalPages
+                            );
+                            setCurrentPage(newPage);
+                            fetchMembers(newPage, itemsPerPage);
+                          }}
+                          disabled={currentPage === totalPages}
+                          className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                            currentPage === totalPages
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-500 text-white hover:bg-blue-600'
+                          }`}
+                        >
+                          Next
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setCurrentPage(totalPages);
+                            fetchMembers(totalPages, itemsPerPage);
+                          }}
+                          disabled={currentPage === totalPages}
+                          className={`px-3 py-1 text-sm font-medium rounded-lg ${
+                            currentPage === totalPages
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          Last
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </main>
@@ -1481,10 +1704,220 @@ function Dashboard() {
         </Dialog>
       )}
 
+      {showUpcomingRenewalsModal && (
+        <Dialog
+          open={showUpcomingRenewalsModal}
+          onClose={() => setShowUpcomingRenewalsModal(false)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <DialogPanel className="w-full max-w-2xl rounded-2xl bg-white p-6">
+              <Dialog.Title className="text-xl font-semibold mb-4">
+                Upcoming Renewals (Next 7 Days)
+              </Dialog.Title>
+              <div className="mt-4">
+                {upcomingRenewals.renewals.length > 0 ? (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Member Name
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Plan
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Expiry Date
+                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                              Amount
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {upcomingRenewals.renewals.map((renewal) => (
+                            <tr key={renewal._id}>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {renewal.name}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {renewal.membership_type}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {new Date(
+                                  renewal.membership_end_date
+                                ).toLocaleDateString()}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ₹{renewal.membership_amount.toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-500">
+                          Total Expected Revenue:
+                        </span>
+                        <span className="text-lg font-semibold text-green-600">
+                          ₹
+                          {upcomingRenewals.totalExpectedRevenue.toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <FaCalendar className="w-12 h-12 text-gray-400 mb-4" />
+                    <p className="text-lg text-gray-600 font-medium">
+                      No upcoming renewals
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      There are no memberships due for renewal in the next 7
+                      days
+                    </p>
+                  </div>
+                )}
+              </div>
+              <div className="mt-6 flex justify-end">
+                <button
+                  type="button"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                  onClick={() => setShowUpcomingRenewalsModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </DialogPanel>
+          </div>
+        </Dialog>
+      )}
+
+      {/* Due Details Modal */}
+      {showDueDetailsModal && (
+        <Dialog
+          open={showDueDetailsModal}
+          onClose={() => setShowDueDetailsModal(false)}
+          className="relative z-50"
+        >
+          <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <DialogPanel className="w-full max-w-4xl rounded-2xl bg-white p-6">
+              <div className="flex justify-between items-center mb-6">
+                <Dialog.Title className="text-xl font-semibold">
+                  Due Amount Details
+                </Dialog.Title>
+                <button
+                  onClick={() => setShowDueDetailsModal(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <span className="sr-only">Close</span>×
+                </button>
+              </div>
+
+              {/* Statistics Cards */}
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">Average Due</p>
+                  <p className="text-xl font-semibold">
+                    ₹{dueDetails.statistics.averageDueAmount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">Highest Due</p>
+                  <p className="text-xl font-semibold text-red-600">
+                    ₹{dueDetails.statistics.highestDueAmount.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    Total Members with Due
+                  </p>
+                  <p className="text-xl font-semibold">
+                    {dueDetails.members.length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Members Table */}
+              <div className="mt-6">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Member Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Due Amount
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Last Payment
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {dueDetails.members.map((member) => (
+                      <tr key={member._id}>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div>
+                              <div className="text-sm font-medium text-gray-900">
+                                {member.name}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {member.number}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-red-600 font-semibold">
+                            ₹{member.member_total_due_amount.toLocaleString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-900">
+                            {new Date(
+                              member.last_payment_date
+                            ).toLocaleDateString()}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => {
+                              setShowDueDetailsModal(false);
+                              handlePayDue(member);
+                            }}
+                            className="text-blue-600 hover:text-blue-900"
+                          >
+                            Pay Due
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </DialogPanel>
+          </div>
+        </Dialog>
+      )}
+
       <SuccessfullPayment show={showSuccessfullPayment} />
-      
+
       {/* Place the ErrorAnimation component at the root level so it's always rendered */}
-      <ErrorAnimation show={errorAnimation.show} message={errorAnimation.message} />
+      <ErrorAnimation
+        show={errorAnimation.show}
+        message={errorAnimation.message}
+      />
     </div> /* This is the closing div of your main flex container */
   );
 }
