@@ -12,6 +12,7 @@ import Member from './pages/Member';
 import UserManagement from './pages/UserManagement'; 
 import PaymentRecord from './pages/PaymentRecord';
 import Unauthorized from './pages/Unauthorized';
+import Settings from './pages/Settings.jsx';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
           <Route path="/dashboard/user-management" element={<UserManagement />} />
           <Route path="/dashboard/payment-record" element={<PaymentRecord />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
+          <Route path="/dashboard/settings" element={<Settings />} />
         </Routes>
       </Router>
     </UserProvider>
