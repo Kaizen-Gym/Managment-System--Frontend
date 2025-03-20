@@ -20,11 +20,10 @@ api.interceptors.request.use((config) => {
 
 // Add token to requests if available
 export const memberService = {
-  getMembers: async (page = 1, limit = 10) => {
-    // Correct function name is getMembers
+  getMembers: async (page = 1, limit = 10, status = 'all') => {
     const token = localStorage.getItem('token');
     const response = await axios.get(
-      `${BASE_URL}/members?page=${page}&limit=${limit}`,
+      `${BASE_URL}/members?page=${page}&limit=${limit}&status=${status}`,
       {
         headers: { Authorization: `Bearer ${token}` },
       }
