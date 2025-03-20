@@ -14,7 +14,6 @@ import {
   FaUserPlus,
   FaExclamationTriangle,
   FaExclamationCircle,
-  FaMoneyBill,
 } from 'react-icons/fa';
 import axios from 'axios';
 import { Dialog, DialogPanel } from '@headlessui/react';
@@ -30,6 +29,7 @@ import usePermissionCheck from '../hooks/usePermissionCheck';
 
 function Dashboard() {
   usePermissionCheck('view_dashboard');
+  const [membersdata, setmembersdata] = useState({});
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -112,7 +112,6 @@ function Dashboard() {
   const fetchUpcomingRenewals = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Fetching upcoming renewals...');
 
       const response = await axios.get(
         'http://localhost:5050/api/reports/upcoming-renewals',
@@ -122,11 +121,6 @@ function Dashboard() {
           },
         }
       );
-
-      console.log('Upcoming renewals response:', {
-        data: response.data,
-        status: response.status,
-      });
 
       setUpcomingRenewals({
         renewals: response.data.renewals || [],
@@ -153,6 +147,7 @@ function Dashboard() {
         }
       );
       setMembers(response.data.members);
+      setmembersdata(response.data);
       setTotalPages(response.data.totalPages);
       setCurrentPage(response.data.page);
       setLoading(false);
@@ -594,7 +589,7 @@ function Dashboard() {
                       Total Members
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                      {dashboardStats.totalMembers}
+                      {membersdata.total}
                     </h3>
                   </div>
                   <div className="bg-blue-100 p-3 rounded-full">
@@ -682,7 +677,7 @@ function Dashboard() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  {dashboardStats.membersWithDue || 0} members with dues
+                  {dueDetails.members.length || 0} members with dues
                 </p>
               </div>
 
@@ -715,7 +710,7 @@ function Dashboard() {
               <h3 className="text-lg font-medium text-gray-900 mb-4">
                 Payment Methods
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {dashboardStats.paymentMethodsBreakdown?.map((method) => (
                   <div
                     key={method._id}
@@ -860,7 +855,7 @@ function Dashboard() {
                         <span className="text-sm text-gray-600">entries</span>
                       </div>
                       <div className="text-sm text-gray-600">
-                        Total: {members.length} members
+                        Total: {membersdata.total} members
                       </div>
                     </div>
 

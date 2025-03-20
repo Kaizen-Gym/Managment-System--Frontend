@@ -14,16 +14,22 @@ const MembersList = ({ onSelectMember }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    const fetchMembers = async (page = 1) => {
+    const fetchMembers = async () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await memberService.getMembers(page, itemsPerPage);
+        const response = await memberService.getMembers(
+          currentPage,
+          itemsPerPage,
+          filterStatus
+        );
         setMembers(response.members);
         setTotalPages(response.totalPages);
         setCurrentPage(response.page);
+        setTotalCount(response.total);
       } catch (error) {
         console.error('Error fetching members:', error);
         setError('Failed to fetch members');
@@ -31,8 +37,13 @@ const MembersList = ({ onSelectMember }) => {
         setLoading(false);
       }
     };
-    fetchMembers(currentPage);
-  }, [currentPage]); // Empty dependency array to run only once on component mount
+    fetchMembers();
+  }, [currentPage, itemsPerPage, filterStatus]);
+
+  const handleFilterChange = (e) => {
+    setFilterStatus(e.target.value);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
 
   if (loading) return <div className="text-center py-4">Loading...</div>;
   if (error)
@@ -62,6 +73,13 @@ const MembersList = ({ onSelectMember }) => {
       member.membership_status.toLowerCase() === filterStatus;
     return matchesSearch && matchesFilter;
   });
+  
+  const displayedMembers = members.filter((member) => 
+    searchTerm
+      ? member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      : true
+  );
 
   return (
     <div className="bg-white rounded-lg shadow ">
@@ -84,12 +102,11 @@ const MembersList = ({ onSelectMember }) => {
             <select
               className="border rounded-lg px-4 py-2"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={handleFilterChange}
             >
               <option value="all">All Members</option>
-              <option value="active">Active</option>
-              <option value="expired">Expired</option>
-              <option value="pending">Pending Renewal</option>
+              <option value="Active">Active</option>
+              <option value="Expired">Expired</option>
             </select>
           </div>
         </div>
@@ -116,7 +133,7 @@ const MembersList = ({ onSelectMember }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredMembers.map((member) => (
+              {displayedMembers.map((member) => (
                 <tr key={member._id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -148,9 +165,9 @@ const MembersList = ({ onSelectMember }) => {
                     <span
                       className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
                       ${
-                        member.membership_status.toLowerCase() === 'active'
+                        member.membership_status === 'Active'
                           ? 'bg-green-100 text-green-800'
-                          : member.membership_status.toLowerCase() === 'expired'
+                          : member.membership_status === 'Expired'
                             ? 'bg-red-100 text-red-800'
                             : 'bg-yellow-100 text-yellow-800'
                       }`}
@@ -205,7 +222,7 @@ const MembersList = ({ onSelectMember }) => {
               <span className="text-sm text-gray-600">entries</span>
             </div>
             <div className="text-sm text-gray-600">
-              Total: {filteredMembers.length} members
+              Total: {totalCount} members
             </div>
           </div>
 

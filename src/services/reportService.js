@@ -9,8 +9,9 @@ export const reportService = {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         date: params.endDate,
-        interval: params.interval
-      }
+        interval: params.interval,
+        showAllData: params.interval === 'all',
+      },
     });
     return response.data;
   },
@@ -21,8 +22,9 @@ export const reportService = {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         date: params.endDate,
-        interval: params.interval
-      }
+        interval: params.interval,
+        showAllData: params.interval === 'all',
+      },
     });
     return response.data;
   },
@@ -33,9 +35,10 @@ export const reportService = {
       headers: { Authorization: `Bearer ${token}` },
       params: {
         date: params.endDate,
-        interval: params.interval
-      }
+        interval: params.interval,
+        showAllData: params.interval === 'all',
+      },
     });
     return response.data;
-  }
+  },
 };
