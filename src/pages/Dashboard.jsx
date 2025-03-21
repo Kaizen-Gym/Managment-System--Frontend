@@ -503,6 +503,7 @@ function Dashboard() {
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
                       {membersdata.total}
+                      {membersdata.total}
                     </h3>
                   </div>
                   <div className="bg-blue-100 p-3 rounded-full">
@@ -590,6 +591,7 @@ function Dashboard() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
+                  {dueDetails.members.length || 0} members with dues
                   {dueDetails.members.length || 0} members with dues
                 </p>
               </div>

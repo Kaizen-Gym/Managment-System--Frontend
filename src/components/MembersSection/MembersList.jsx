@@ -36,6 +36,7 @@ const MembersList = ({ onSelectMember }) => {
         setTotalPages(response.totalPages);
         setCurrentPage(response.page);
         setTotalCount(response.total);
+        setTotalCount(response.total);
       } catch (error) {
         console.error('Error fetching members:', error);
         setError('Failed to fetch members');
