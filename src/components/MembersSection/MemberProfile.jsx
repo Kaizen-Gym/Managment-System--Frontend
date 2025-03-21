@@ -26,6 +26,14 @@ import { useNavigate } from 'react-router-dom';
 //components
 import SuccessfullPayment from '../Animations/SuccessfulPayment';
 
+const API = axios.create({
+  baseURL: `${import.meta.env.VITE_API_URL}`,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 const MemberProfile = ({ memberNumber }) => {
   const [memberData, setMemberData] = useState(null);
   const [payments, setPayments] = useState([]);
@@ -109,13 +117,9 @@ const MemberProfile = ({ memberNumber }) => {
   const fetchMembershipPlans = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await API.get(
+        `/api/memberships/plans`,
+        
       );
       setAvailablePlans(response.data);
     } catch (err) {
@@ -146,18 +150,14 @@ const MemberProfile = ({ memberNumber }) => {
     e.preventDefault(); // Prevent default form submission
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/memberships/pay-due`, // Ensure correct URL
+      const response = await API.post(
+        `/api/memberships/pay-due`, // Ensure correct URL
         {
           number: memberData.number,
           amount_paid: parseFloat(duePayment.amount),
           payment_mode: duePayment.payment_mode,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
 
       if (response.data) {
@@ -201,8 +201,8 @@ const MemberProfile = ({ memberNumber }) => {
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/memberships/renew`, // Ensure correct URL
+      await API.post(
+        `/api/memberships/renew`, // Ensure correct URL
         {
           number: memberData.number,
           membership_type: memberData.membership_type,
@@ -214,11 +214,7 @@ const MemberProfile = ({ memberNumber }) => {
           // Include actual amount paid (if needed by backend)
           actual_amount_paid: actualPaid,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
       await fetchMemberData(); // Refetch member data to update profile
       setIsRenewalOpen(false);
@@ -288,14 +284,10 @@ const MemberProfile = ({ memberNumber }) => {
     e.preventDefault(); // Prevent default form submission
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/member/members/${memberData.number}`, // Ensure correct URL
+      await API.put(
+        `/api/member/members/${memberData.number}`, // Ensure correct URL
         editMemberData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
       await fetchMemberData(); // Refresh member data
       setIsEditMemberModalOpen(false);
@@ -313,13 +305,9 @@ const MemberProfile = ({ memberNumber }) => {
   const handleDeleteMember = async () => {
     try {
       const token = localStorage.getItem('token');
-      await axios.delete(
-        `${import.meta.env.VITE_API_URL}/api/member/members/${memberData.number}`, // Ensure correct URL
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      await API.delete(
+        `/api/member/members/${memberData.number}`, // Ensure correct URL
+        
       );
       alert('Member deleted successfully.');
       // After successful deletion, you might want to navigate back to the members list or update the UI as needed.
@@ -339,17 +327,13 @@ const MemberProfile = ({ memberNumber }) => {
     e.preventDefault(); // Prevent default form submission
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/member/transfer`, // Ensure correct URL
+      await API.post(
+        `/api/member/transfer`, // Ensure correct URL
         {
           source_number: memberData.number,
           target_number: transferDaysData.targetMemberNumber,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
       await fetchMemberData(); // Refresh member data
       setIsTransferDaysModalOpen(false);
@@ -367,17 +351,13 @@ const MemberProfile = ({ memberNumber }) => {
     e.preventDefault(); // Prevent default form submission
     try {
       const token = localStorage.getItem('token');
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/member/complimentary-days`, // Ensure correct URL
+      await API.post(
+        `/api/member/complimentary-days`, // Ensure correct URL
         {
           number: memberData.number,
           days: parseInt(complimentaryDaysData.days, 10),
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
       await fetchMemberData(); // Refresh member data
       setIsComplimentaryDaysModalOpen(false);
@@ -395,16 +375,12 @@ const MemberProfile = ({ memberNumber }) => {
     e.preventDefault(); // Prevent default form submission
     try {
       const token = localStorage.getItem('token');
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/member/members/${memberData.number}`, // Ensure correct URL, using existing update endpoint
+      await API.put(
+        `/api/member/members/${memberData.number}`, // Ensure correct URL, using existing update endpoint
         {
           membership_type: upgradeMembershipData.membership_type,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        
       );
       await fetchMemberData(); // Refresh member data
       setIsMembershipUpgradeModalOpen(false);

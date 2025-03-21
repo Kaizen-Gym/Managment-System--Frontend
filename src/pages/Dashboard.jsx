@@ -27,6 +27,14 @@ import ErrorAnimation from '../components/Animations/ErrorAnimation';
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
+const API = axios.create({
+  baseURL: `${import.meta.env.VITE_API_URL}`,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 function Dashboard() {
   usePermissionCheck('view_dashboard');
   const [membersdata, setmembersdata] = useState({});
@@ -111,16 +119,7 @@ function Dashboard() {
 
   const fetchUpcomingRenewals = async () => {
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await axios.get(
-        'http://localhost:5050/api/reports/upcoming-renewals',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await API.get('/api/reports/upcoming-renewals');
 
       setUpcomingRenewals({
         renewals: response.data.renewals || [],
@@ -137,14 +136,9 @@ function Dashboard() {
 
   const fetchMembers = async (page = 1, limit = 10) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `http://localhost:5050/api/member/members?page=${page}&limit=${limit}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await API.get(
+        `/api/member/members?page=${page}&limit=${limit}`,
+        { withCredentials: true }
       );
       setMembers(response.data.members);
       setmembersdata(response.data);
@@ -180,16 +174,7 @@ function Dashboard() {
     setIsRenewModalOpen(true);
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(
-        `http://localhost:5050/api/memberships/renew`,
-        newRenewal,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await API.post(`/api/memberships/renew`, newRenewal);
       fetchMembers(); // Refresh the list
     } catch (err) {
       console.error('Error renewing membership:', err);
@@ -226,21 +211,11 @@ function Dashboard() {
   const handlePayDueSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-
-      const response = await axios.post(
-        'http://localhost:5050/api/memberships/pay-due',
-        {
-          number: selectedMember.number,
-          amount_paid: parseFloat(duePayment.amount),
-          payment_mode: duePayment.payment_mode,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await API.post('/api/memberships/pay-due', {
+        number: selectedMember.number,
+        amount_paid: parseFloat(duePayment.amount),
+        payment_mode: duePayment.payment_mode,
+      });
 
       if (response.data) {
         await fetchDueDetails();
@@ -263,15 +238,7 @@ function Dashboard() {
 
   const fetchDueDetails = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        'http://localhost:5050/api/reports/due-details',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await API.get('/api/reports/due-details');
       setDueDetails(response.data);
     } catch (err) {
       console.error('Error fetching due details:', err);
@@ -283,16 +250,7 @@ function Dashboard() {
     setIsEditModalOpen(true);
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
-        `http://localhost:5050/api/member/members/${member.id}`,
-        member,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      await API.put(`/api/member/members/${member.id}`, member);
       fetchMembers(); // Refresh the list
     } catch (err) {
       console.error('Error editing member:', err);
@@ -301,8 +259,7 @@ function Dashboard() {
 
   const handleDeleteMember = async (number) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`http://localhost:5050/api/member/members/${number}`, {
+      await API.delete(`/api/member/members/${number}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -316,8 +273,6 @@ function Dashboard() {
   const handleSubmitNewMember = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-
       if (newMember.membership_due_amount < 0) {
         alert('Membership due amount is required and cannot be negative');
       }
@@ -333,15 +288,7 @@ function Dashboard() {
 
       console.log(newMember);
 
-      const response = await axios.post(
-        'http://localhost:5050/api/member/signup',
-        newMember,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await API.post('/api/member/signup', newMember);
       setIsAddMemberOpen(false);
       fetchMembers(); // Refresh the list
       fetchDashboardStats();
@@ -378,27 +325,15 @@ function Dashboard() {
 
   const fetchDashboardStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-
       // Fetch membership stats
-      const membershipStats = await axios.get(
-        'http://localhost:5050/api/reports/membership',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const membershipStats = await API.get('/api/reports/membership', {
+        withCredentials: true,
+      });
 
       // Fetch financial stats
-      const financialStats = await axios.get(
-        'http://localhost:5050/api/reports/financial',
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const financialStats = await API.get('/api/reports/financial', {
+        withCredentials: true,
+      });
 
       setDashboardStats({
         totalMembers: membershipStats.data.totalActiveMembers || 0,
@@ -421,14 +356,8 @@ function Dashboard() {
 
   const fetchMembershipPlans = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const response = await API.get(
+        `${import.meta.env.VITE_API_URL}/api/memberships/plans`
       );
       setAvailablePlans(response.data);
     } catch (err) {
@@ -464,8 +393,6 @@ function Dashboard() {
   const handleRenewSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-
       // Ensure amounts are valid numbers
       const membershipAmount =
         parseFloat(selectedMember.membership_amount) || 0;
@@ -494,15 +421,7 @@ function Dashboard() {
 
       console.log('Renewal Data:', renewalData); // Use object logging for better debugging
 
-      const response = await axios.post(
-        'http://localhost:5050/api/memberships/renew',
-        renewalData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await API.post('/api/memberships/renew', renewalData);
 
       if (response.data) {
         await Promise.all([
@@ -532,15 +451,9 @@ function Dashboard() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(
+      await API.put(
         `${import.meta.env.VITE_API_URL}/api/member/members/${selectedMember.number}`,
-        selectedMember,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        selectedMember
       );
       fetchMembers();
       setIsEditModalOpen(false);

@@ -9,6 +9,15 @@ import { Dialog } from '@headlessui/react';
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
+const API = axios.create({
+  baseURL: `${import.meta.env.VITE_API_URL}`,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+
 function MembershipPlans() {
   usePermissionCheck('view_membership_plans'); // Requires 'view_membership_plans' permission
   
@@ -33,11 +42,8 @@ function MembershipPlans() {
   const fetchPlans = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
+      const response = await API.get(
+        `/api/memberships/plans`,
       );
       setPlans(response.data);
       setIsLoading(false);
@@ -78,20 +84,16 @@ function MembershipPlans() {
     
     try {
       if (isEditing) {
-        await axios.put(
-          `${import.meta.env.VITE_API_URL}/api/memberships/plans/${selectedPlan._id}`,
+        await API.put(
+          `/api/memberships/plans/${selectedPlan._id}`,
           formData,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+          
         );
       } else {
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/memberships/plans`,
+        await API.post(
+          `/api/memberships/plans`,
           formData,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+          
         );
       }
       
@@ -121,11 +123,9 @@ function MembershipPlans() {
     if (window.confirm('Are you sure you want to delete this plan?')) {
       try {
         const token = localStorage.getItem('token');
-        await axios.delete(
-          `${import.meta.env.VITE_API_URL}/api/memberships/plans/${planId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
+        await API.delete(
+          `/api/memberships/plans/${planId}`,
+          
         );
         fetchPlans();
       } catch (err) {
