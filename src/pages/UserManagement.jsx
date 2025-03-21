@@ -3,14 +3,22 @@ import DashboardLayout from '../components/DashboardLayout';
 import { Dialog, DialogPanel } from '@headlessui/react';
 import { FaEdit, FaTrash, FaUsers } from 'react-icons/fa';
 import ErrorAnimation from '../components/Animations/ErrorAnimation';
+import axios from 'axios';
 
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
-const API_BASE = 'http://localhost:5050';
+// Create axios instance with defaults
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const UserManagement = () => {
-  usePermissionCheck('manage_users', '/dashboard');  // Requires 'view_users' permission// Requires 'manage_users' permission. Redirect to dashboard if not allowed
+  usePermissionCheck('manage_users', '/dashboard');
 
   // States for users
   const [users, setUsers] = useState([]);
@@ -43,14 +51,13 @@ const UserManagement = () => {
   const [isEditRoleModalOpen, setIsEditRoleModalOpen] = useState(false);
   const [expandedRoles, setExpandedRoles] = useState([]);
 
-  // Other UI state
+  // Error handling state
   const [errorAnimation, setErrorAnimation] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // For demo purposes – assume gymId comes from logged in user or props
+  // Get gymId from stored user
   const storedUser = JSON.parse(localStorage.getItem('user'));
-  const gymId = storedUser.gymId;
-  console.log(gymId);
+  const gymId = storedUser?.gymId;
 
   const allPermissions = [
     'view_dashboard',
@@ -67,27 +74,16 @@ const UserManagement = () => {
     fetchRoles();
   }, []);
 
+  // User Management Functions
   const fetchUsers = async () => {
     try {
-      const token = localStorage.getItem('token');
       setLoadingUsers(true);
-      const response = await fetch(`${API_BASE}/api/users`, {
-        method: 'GET',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to fetch users: ${response.status} ${errorText}`
-        );
-      }
-      const data = await response.json();
-      setUsers(data);
+      const response = await api.get('/api/users');
+      setUsers(response.data);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to fetch users');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     } finally {
       setLoadingUsers(false);
     }
@@ -96,23 +92,12 @@ const UserManagement = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        // Send gymId as required by your API.
-        body: JSON.stringify({ ...newUser, gymId: gymId }),
+      const response = await api.post('/api/users', {
+        ...newUser,
+        gymId: gymId,
       });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to add user: ${response.status} ${errorText}`);
-      }
-      const createdUser = await response.json();
-      setUsers((prev) => [...prev, createdUser]);
-      // Reset the form with all fields
+
+      setUsers((prev) => [...prev, response.data]);
       setNewUser({
         name: '',
         email: '',
@@ -125,10 +110,9 @@ const UserManagement = () => {
       });
       setIsCreateUserModalOpen(false);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to add user');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
@@ -137,113 +121,69 @@ const UserManagement = () => {
     if (user._id === currentUser._id) {
       setErrorMessage('Cannot edit your own account');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
       return;
     }
     setEditingUser(user);
     setIsEditUserModalOpen(true);
   };
-  
+
   const toggleEditPermission = (permission) => {
-    // Ensure permissions exists; if not, initialize it as an empty array
     const currentPermissions = editingUser.permissions || [];
-    
+
     if (currentPermissions.includes(permission)) {
-      // Remove the permission if it already exists
       setEditingUser({
         ...editingUser,
-        permissions: currentPermissions.filter((perm) => perm !== permission)
+        permissions: currentPermissions.filter((perm) => perm !== permission),
       });
     } else {
-      // Add the permission if it's not in the array
       setEditingUser({
         ...editingUser,
-        permissions: [...currentPermissions, permission]
+        permissions: [...currentPermissions, permission],
       });
     }
   };
 
-
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/users/${editingUser._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(editingUser),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to update user: ${response.status} ${errorText}`
-        );
-      }
-      const updatedUser = await response.json();
+      const response = await api.put(
+        `/api/users/${editingUser._id}`,
+        editingUser
+      );
+
       setUsers((prev) =>
-        prev.map((user) => (user._id === updatedUser._id ? updatedUser : user))
+        prev.map((user) =>
+          user._id === response.data._id ? response.data : user
+        )
       );
       setEditingUser(null);
       setIsEditUserModalOpen(false);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to update user');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
   const handleDeleteUser = async (userId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to delete user: ${response.status} ${errorText}`
-        );
-      }
+      await api.delete(`/api/users/${userId}`);
       setUsers((prev) => prev.filter((user) => user._id !== userId));
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to delete user');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
-  // Toggle permission: add it if not present, remove if already selected
-  const togglePermission = (permName) => {
-    setNewUser((prev) => {
-      const newPermissions = prev.permissions.includes(permName)
-        ? prev.permissions.filter((p) => p !== permName)
-        : [...prev.permissions, permName];
-      return { ...prev, permissions: newPermissions };
-    });
-  };
-
+  // Role Management Functions
   const fetchRoles = async () => {
     try {
-      const token = localStorage.getItem('token');
       setLoadingRoles(true);
-      const response = await fetch(`${API_BASE}/api/roles`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to fetch roles: ${response.status} ${errorText}`
-        );
-      }
-      let data = await response.json();
-      data = data.map((role) => {
+      const response = await api.get('/api/roles');
+
+      let data = response.data.map((role) => {
         if (typeof role === 'string') {
           role = { name: role, defaultPermissions: [], currentPermissions: [] };
         }
@@ -259,12 +199,12 @@ const UserManagement = () => {
           currentPermissions: normalizePerms(role.currentPermissions),
         };
       });
+
       setRoles(data);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to fetch roles');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     } finally {
       setLoadingRoles(false);
     }
@@ -273,28 +213,14 @@ const UserManagement = () => {
   const handleAddRole = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/roles`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newRole),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to add role: ${response.status} ${errorText}`);
-      }
-      const createdRole = await response.json();
-      setRoles((prev) => [...prev, createdRole]);
+      const response = await api.post('/api/roles', newRole);
+      setRoles((prev) => [...prev, response.data]);
       setNewRole({ name: '', defaultPermissions: [], currentPermissions: [] });
       setIsCreateRoleModalOpen(false);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to add role');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
@@ -306,68 +232,52 @@ const UserManagement = () => {
   const handleUpdateRole = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(
-        `${API_BASE}/api/roles/${editingRole.name}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(editingRole),
-        }
+      const response = await api.put(
+        `/api/roles/${editingRole.name}`,
+        editingRole
       );
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to update role: ${response.status} ${errorText}`
-        );
-      }
-      const updatedRole = await response.json();
+
       setRoles((prev) =>
         prev.map((role) =>
-          role.name === updatedRole.name ? updatedRole : role
+          role.name === response.data.name ? response.data : role
         )
       );
       setEditingRole(null);
       setIsEditRoleModalOpen(false);
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to update role');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
   const handleDeleteRole = async (roleName) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/api/roles/${roleName}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to delete role: ${response.status} ${errorText}`
-        );
-      }
+      await api.delete(`/api/roles/${roleName}`);
       setRoles((prev) => prev.filter((role) => role.name !== roleName));
     } catch (error) {
-      setErrorMessage(error.message);
+      setErrorMessage(error.response?.data?.message || 'Failed to delete role');
       setErrorAnimation(true);
-      
-      setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
+      setTimeout(() => setErrorAnimation(false), 3000);
     }
   };
 
+  // UI Helper Functions
   const toggleRoleExpand = (roleName) => {
     setExpandedRoles((prev) =>
       prev.includes(roleName)
         ? prev.filter((r) => r !== roleName)
         : [...prev, roleName]
     );
+  };
+
+  const togglePermission = (permName) => {
+    setNewUser((prev) => {
+      const newPermissions = prev.permissions.includes(permName)
+        ? prev.permissions.filter((p) => p !== permName)
+        : [...prev.permissions, permName];
+      return { ...prev, permissions: newPermissions };
+    });
   };
 
   const formatPermission = (perm) => {
@@ -546,14 +456,14 @@ const UserManagement = () => {
         >
           {/* Backdrop */}
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
-      
+
           {/* Centering container */}
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white bg-gradient-to-b from-gray-50 to-white p-8 text-left align-middle shadow-xl transition-all duration-300 ease-out motion-safe:animate-[fadeIn_0.3s_ease-in-out]">
               <Dialog.Title className="text-2xl font-bold text-gray-900 pb-4 border-b border-gray-200 mb-6">
                 Create User
               </Dialog.Title>
-      
+
               <form onSubmit={handleAddUser} className="mt-4 space-y-4">
                 <input
                   type="text"
@@ -646,7 +556,7 @@ const UserManagement = () => {
                     </label>
                   ))}
                 </div>
-      
+
                 {/* Buttons */}
                 <div className="mt-8 flex justify-end space-x-4 border-t border-gray-200 pt-6">
                   <button
@@ -679,7 +589,9 @@ const UserManagement = () => {
           <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
           <div className="fixed inset-0 flex items-center justify-center p-4">
             <DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6">
-              <Dialog.Title className="text-lg font-bold">Edit User</Dialog.Title>
+              <Dialog.Title className="text-lg font-bold">
+                Edit User
+              </Dialog.Title>
               <form onSubmit={handleUpdateUser} className="mt-4 space-y-2">
                 <input
                   type="text"
@@ -704,7 +616,10 @@ const UserManagement = () => {
                 <select
                   value={editingUser.user_type}
                   onChange={(e) =>
-                    setEditingUser({ ...editingUser, user_type: e.target.value })
+                    setEditingUser({
+                      ...editingUser,
+                      user_type: e.target.value,
+                    })
                   }
                   className="p-2 border rounded w-full"
                   required

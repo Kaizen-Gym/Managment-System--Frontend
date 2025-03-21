@@ -51,6 +51,7 @@ function Reports() {
 
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+  {/* eslint-disable-next-line */}
   const months = [
     'January',
     'February',
@@ -74,6 +75,12 @@ function Reports() {
         endDate: new Date()
       };
     }
+    if (intervalDays === 'all') {
+      return {
+        startDate: 'Beginning',
+        endDate: new Date()
+      };
+    }
     const endDate = new Date(date);
     const startDate = new Date(date);
     startDate.setDate(startDate.getDate() - parseInt(intervalDays));
@@ -85,6 +92,7 @@ function Reports() {
     fetchAnalytics({
       endDate: date,
       interval: interval,
+      interval: interval,
     });
   };
 
@@ -94,6 +102,7 @@ function Reports() {
     setInterval(newInterval);
     fetchAnalytics({
       endDate: selectedDate,
+      interval: newInterval,
       interval: newInterval,
     });
   };
@@ -114,6 +123,37 @@ function Reports() {
     return 0;
   };
 
+  const fetchAnalytics = useCallback(
+    async (params = null) => {
+      try {
+        setLoading(true);
+        const queryParams = {
+          endDate: params?.endDate || selectedDate,
+          interval: params?.interval || interval,
+        };
+
+        const [membershipData, attendanceData, financialData] =
+          await Promise.all([
+            reportService.getMembershipAnalytics(queryParams),
+            reportService.getAttendanceAnalytics(queryParams),
+            reportService.getFinancialAnalytics(queryParams),
+          ]);
+
+        setAnalytics({
+          membership: membershipData,
+          attendance: attendanceData,
+          financial: financialData,
+        });
+
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch analytics data');
+        setLoading(false);
+        console.error('Error fetching analytics:', err);
+      }
+    },
+    [selectedDate, interval]
+  );
   const fetchAnalytics = useCallback(
     async (params = null) => {
       try {
@@ -224,6 +264,7 @@ function Reports() {
                   <option value="15">Previous 15 Days</option>
                   <option value="30">Previous 30 Days</option>
                   <option value="90">Previous 90 Days</option>
+                  <option value="all">All Time</option>
                   <option value="all">All Time</option>
                 </select>
               </div>
