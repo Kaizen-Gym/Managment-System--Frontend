@@ -1,15 +1,12 @@
 import api from './api';
-
-// Helper function to handle errors
-const handleError = (error) => {
-  console.error('Error:', error);
-  alert(error.response?.message || 'An error occurred');
-};
+import logger from '../utils/logger';
+import { handleError } from '../utils/errorHandler';
 
 export const dashboardService = {
   // Analytics
   getMembershipAnalytics: async (params) => {
     try {
+      logger.debug('Fetching membership analytics', { params });
       const response = await api.get('/api/reports/analytics/membership', {
         params: {
           ...params,
@@ -21,23 +18,29 @@ export const dashboardService = {
       }
       return response.data;
     } catch (error) {
-      console.error('Membership analytics error:', error);
+      const errorMessage = handleError(error, 'getMembershipAnalytics');
+      logger.error('Membership analytics error', { params, message: errorMessage });
       throw error;
     }
   },
 
   getAttendanceAnalytics: async (params) => {
-    const response = await api.get('/api/reports/analytics/attendance', {
-      params,
-    });
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Fetching attendance analytics', { params });
+      const response = await api.get('/api/reports/analytics/attendance', {
+        params,
+      });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'getAttendanceAnalytics');
+      logger.error('Attendance analytics error', { params, message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   getFinancialAnalytics: async (params) => {
     try {
+      logger.debug('Fetching financial analytics', { params });
       const response = await api.get('/api/reports/analytics/financial', {
         params: {
           ...params,
@@ -49,87 +52,156 @@ export const dashboardService = {
       }
       return response.data;
     } catch (error) {
-      console.error('Financial analytics error:', error);
+      const errorMessage = handleError(error, 'getFinancialAnalytics');
+      logger.error('Financial analytics error', { params, message: errorMessage });
       throw error;
     }
   },
 
   // Members
   getMembers: async (page = 1, limit = 10) => {
-    const response = await api.get(
-      `/api/member/members?page=${page}&limit=${limit}`
-    );
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Fetching members list', { page, limit });
+      const response = await api.get(
+        `/api/member/members?page=${page}&limit=${limit}`
+      );
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'getMembers');
+      logger.error('Failed to fetch members', { page, limit, message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   addMember: async (memberData) => {
-    const response = await api.post('/api/member/signup', memberData);
-    if (!response) {
-      handleError(response);
+    try {
+      // Remove sensitive data from logs
+      const logData = { ...memberData };
+      delete logData.password;
+      
+      logger.debug('Adding new member', { name: memberData.name });
+      const response = await api.post('/api/member/signup', memberData);
+      logger.info('Member added successfully', { name: memberData.name });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'addMember');
+      logger.error('Failed to add member', { name: memberData.name, message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   // Renewals
   renewMembership: async (renewalData) => {
-    const response = await api.post('/api/memberships/renew', renewalData);
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Renewing membership', { 
+        number: renewalData.number, 
+        type: renewalData.membership_type 
+      });
+      const response = await api.post('/api/memberships/renew', renewalData);
+      logger.info('Membership renewed successfully', { 
+        number: renewalData.number, 
+        type: renewalData.membership_type 
+      });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'renewMembership');
+      logger.error('Failed to renew membership', { 
+        number: renewalData.number, 
+        message: errorMessage 
+      });
+      throw error;
     }
-    return response.data;
   },
 
   // Due Payments
   payDue: async (paymentData) => {
-    const response = await api.post('/api/memberships/pay-due', paymentData);
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Processing due payment', { 
+        number: paymentData.number, 
+        amount: paymentData.amount_paid 
+      });
+      const response = await api.post('/api/memberships/pay-due', paymentData);
+      logger.info('Due payment processed successfully', { 
+        number: paymentData.number, 
+        amount: paymentData.amount_paid 
+      });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'payDue');
+      logger.error('Failed to process due payment', { 
+        number: paymentData.number, 
+        amount: paymentData.amount_paid, 
+        message: errorMessage 
+      });
+      throw error;
     }
-    return response.data;
   },
 
   // Membership Plans
   getMembershipPlans: async () => {
-    const response = await api.get('/api/memberships/plans');
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Fetching membership plans');
+      const response = await api.get('/api/memberships/plans');
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'getMembershipPlans');
+      logger.error('Failed to fetch membership plans', { message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   // Reports
   getUpcomingRenewals: async () => {
-    const response = await api.get('/api/reports/upcoming-renewals');
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Fetching upcoming renewals');
+      const response = await api.get('/api/reports/upcoming-renewals');
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'getUpcomingRenewals');
+      logger.error('Failed to fetch upcoming renewals', { message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   getDueDetails: async () => {
-    const response = await api.get('/api/reports/due-details');
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Fetching due details');
+      const response = await api.get('/api/reports/due-details');
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'getDueDetails');
+      logger.error('Failed to fetch due details', { message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   updateMember: async (id, memberData) => {
-    const response = await api.put(`/api/member/members/${id}`, memberData);
-    if (!response) {
-      handleError(response);
+    try {
+      // Remove sensitive data from logs
+      const logData = { ...memberData };
+      delete logData.password;
+      
+      logger.debug('Updating member', { id });
+      const response = await api.put(`/api/member/members/${id}`, memberData);
+      logger.info('Member updated successfully', { id });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'updateMember');
+      logger.error('Failed to update member', { id, message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 
   deleteMember: async (id) => {
-    const response = await api.delete(`/api/member/members/${id}`);
-    if (!response) {
-      handleError(response);
+    try {
+      logger.debug('Deleting member', { id });
+      const response = await api.delete(`/api/member/members/${id}`);
+      logger.info('Member deleted successfully', { id });
+      return response.data;
+    } catch (error) {
+      const errorMessage = handleError(error, 'deleteMember');
+      logger.error('Failed to delete member', { id, message: errorMessage });
+      throw error;
     }
-    return response.data;
   },
 };

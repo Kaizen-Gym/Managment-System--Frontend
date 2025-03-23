@@ -2,6 +2,8 @@ import { createContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
 import { getCsrfToken } from '../utils/csrf';
+import { logger, initLogger, clearLoggerUser } from '../utils/logger'; // Import logger
+import { handleError } from '../utils/errorHandler'; // Import error handler
 
 export const UserContext = createContext();
 
@@ -19,9 +21,12 @@ export const UserProvider = ({ children }) => {
       
       if (response.data.authenticated) {
         setUser(response.data.user);
+        // Initialize logger with user info
+        initLogger(response.data.user);
+        logger.info('User session restored');
       }
     } catch (error) {
-      console.log('Session check failed or user not logged in', error);
+      logger.debug('Session check failed or user not logged in');
     } finally {
       setLoading(false);
     }
@@ -50,9 +55,15 @@ export const UserProvider = ({ children }) => {
 
       const userData = response.data;
       setUser(userData);
+      
+      // Initialize logger with user info
+      initLogger(userData);
+      logger.info('User logged in successfully');
+      
       return userData;
     } catch (error) {
-      console.error('Login error:', error);
+      const errorMessage = handleError(error, 'login');
+      logger.error('Login failed', { message: errorMessage });
       throw error;
     }
   };
@@ -71,11 +82,15 @@ export const UserProvider = ({ children }) => {
           }
         }
       );
+      logger.info('User logged out');
+      clearLoggerUser(); // Clear user from logger
       setUser(null);
       localStorage.clear();
     } catch (error) {
-      console.error('Logout error:', error);
+      const errorMessage = handleError(error, 'logout');
+      logger.error('Logout error', { message: errorMessage });
       setUser(null);
+      clearLoggerUser(); // Still clear user from logger
       localStorage.clear();
     }
   };

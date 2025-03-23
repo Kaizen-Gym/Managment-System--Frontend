@@ -18,6 +18,7 @@ import {
 import { Dialog, DialogPanel } from '@headlessui/react';
 import PropTypes from 'prop-types';
 import { dashboardService } from '../services/dashboardService';
+import { handleError } from '../utils/errorHandler';
 
 //Components
 import DashboardLayout from '../components/DashboardLayout';
@@ -350,15 +351,6 @@ function Dashboard() {
           financialStats.paymentAnalysis?.paymentMethods || [],
       });
 
-      // Debug logging
-      console.log(
-        'Current Month New Members:',
-        membershipStats.growth?.currentMonthGrowth?.newMembers
-      );
-      console.log(
-        'Monthly Growth Data:',
-        membershipStats.growth?.monthlyGrowth
-      );
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError('Failed to fetch dashboard statistics');
@@ -428,7 +420,6 @@ function Dashboard() {
         membership_payment_date: new Date().toISOString().split('T')[0],
       };
 
-      console.log('Renewal Data:', renewalData); // Use object logging for better debugging
 
       const response = await dashboardService.renewMembership(renewalData);
 
