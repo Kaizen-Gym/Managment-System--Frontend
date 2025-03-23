@@ -1,8 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useCallback } from 'react';
-import { memberService } from '../../services/api';
+import { memberService, membershipPlanService } from '../../services/api';
 import PropTypes from 'prop-types';
-import axios from 'axios';
 import {
   FaSync,
   FaCalendarCheck,
@@ -25,14 +24,6 @@ import { useNavigate } from 'react-router-dom';
 
 //components
 import SuccessfullPayment from '../Animations/SuccessfulPayment';
-
-const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}`,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 const MemberProfile = ({ memberNumber }) => {
   const [memberData, setMemberData] = useState(null);
@@ -116,11 +107,7 @@ const MemberProfile = ({ memberNumber }) => {
 
   const fetchMembershipPlans = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await API.get(
-        `/api/memberships/plans`,
-        
-      );
+      const response = await membershipPlanService.getMembershipPlans();
       setAvailablePlans(response.data);
     } catch (err) {
       console.error('Error fetching membership plans:', err);
@@ -149,16 +136,11 @@ const MemberProfile = ({ memberNumber }) => {
   const handlePayDueSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      const token = localStorage.getItem('token');
-      const response = await API.post(
-        `/api/memberships/pay-due`, // Ensure correct URL
-        {
-          number: memberData.number,
-          amount_paid: parseFloat(duePayment.amount),
-          payment_mode: duePayment.payment_mode,
-        },
-        
-      );
+      const response = await memberService.payDue({
+        number: memberData.number,
+        amount_paid: parseFloat(duePayment.amount),
+        payment_mode: duePayment.payment_mode,
+      });
 
       if (response.data) {
         setShowSuccessfullPayment(true);
@@ -200,22 +182,17 @@ const MemberProfile = ({ memberNumber }) => {
     const paymentStatus = dueAmount > 0 ? 'Pending' : 'Paid';
 
     try {
-      const token = localStorage.getItem('token');
-      await API.post(
-        `/api/memberships/renew`, // Ensure correct URL
-        {
-          number: memberData.number,
-          membership_type: memberData.membership_type,
-          membership_amount: memberData.membership_amount,
-          // Send the updated payment status and due amount
-          membership_payment_status: paymentStatus,
-          membership_due_amount: dueAmount,
-          membership_payment_mode: memberData.membership_payment_mode,
-          // Include actual amount paid (if needed by backend)
-          actual_amount_paid: actualPaid,
-        },
-        
-      );
+      await memberService.renewMembership({
+        number: memberData.number,
+        membership_type: memberData.membership_type,
+        membership_amount: memberData.membership_amount,
+        // Send the updated payment status and due amount
+        membership_payment_status: paymentStatus,
+        membership_due_amount: dueAmount,
+        membership_payment_mode: memberData.membership_payment_mode,
+        // Include actual amount paid (if needed by backend)
+        actual_amount_paid: actualPaid,
+      });
       await fetchMemberData(); // Refetch member data to update profile
       setIsRenewalOpen(false);
       setShowSuccessfullPayment(true);
@@ -283,12 +260,7 @@ const MemberProfile = ({ memberNumber }) => {
   const handleEditMember = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      const token = localStorage.getItem('token');
-      await API.put(
-        `/api/member/members/${memberData.number}`, // Ensure correct URL
-        editMemberData,
-        
-      );
+      await memberService.updateMember(memberData.number, editMemberData);
       await fetchMemberData(); // Refresh member data
       setIsEditMemberModalOpen(false);
       setShowSuccessfullPayment(true);
@@ -304,11 +276,7 @@ const MemberProfile = ({ memberNumber }) => {
 
   const handleDeleteMember = async () => {
     try {
-      const token = localStorage.getItem('token');
-      await API.delete(
-        `/api/member/members/${memberData.number}`, // Ensure correct URL
-        
-      );
+      await memberService.deleteMember(memberData.number);
       alert('Member deleted successfully.');
       // After successful deletion, you might want to navigate back to the members list or update the UI as needed.
       // For now, we will just close the modal and not refetch member data as it's deleted.
@@ -326,15 +294,10 @@ const MemberProfile = ({ memberNumber }) => {
   const handleTransferDays = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      const token = localStorage.getItem('token');
-      await API.post(
-        `/api/member/transfer`, // Ensure correct URL
-        {
-          source_number: memberData.number,
-          target_number: transferDaysData.targetMemberNumber,
-        },
-        
-      );
+      await memberService.transferDays({
+        source_number: memberData.number,
+        target_number: transferDaysData.targetMemberNumber,
+      });
       await fetchMemberData(); // Refresh member data
       setIsTransferDaysModalOpen(false);
       setShowSuccessfullPayment(true);
@@ -350,15 +313,10 @@ const MemberProfile = ({ memberNumber }) => {
   const handleComplimentaryDays = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      const token = localStorage.getItem('token');
-      await API.post(
-        `/api/member/complimentary-days`, // Ensure correct URL
-        {
-          number: memberData.number,
-          days: parseInt(complimentaryDaysData.days, 10),
-        },
-        
-      );
+      await memberService.addComplimentaryDays({
+        number: memberData.number,
+        days: parseInt(complimentaryDaysData.days, 10),
+      });
       await fetchMemberData(); // Refresh member data
       setIsComplimentaryDaysModalOpen(false);
       setShowSuccessfullPayment(true);
@@ -374,14 +332,9 @@ const MemberProfile = ({ memberNumber }) => {
   const handleMembershipUpgrade = async (e) => {
     e.preventDefault(); // Prevent default form submission
     try {
-      const token = localStorage.getItem('token');
-      await API.put(
-        `/api/member/members/${memberData.number}`, // Ensure correct URL, using existing update endpoint
-        {
-          membership_type: upgradeMembershipData.membership_type,
-        },
-        
-      );
+      await memberService.updateMember(memberData.number, {
+        membership_type: upgradeMembershipData.membership_type,
+      });
       await fetchMemberData(); // Refresh member data
       setIsMembershipUpgradeModalOpen(false);
       setShowSuccessfullPayment(true);

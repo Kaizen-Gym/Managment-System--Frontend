@@ -1,19 +1,10 @@
 {/* eslint-disable */}
-import axios from 'axios';
-
-const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}`,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  }
-});
-
+import api from './api';
 
 export const reportService = {
   getMembershipAnalytics: async (params) => {
     try {
-      const response = await API.get('/api/reports/analytics/membership', {
+      const response = await api.get('/api/reports/analytics/membership', {
         params: {
           date: params.endDate,
           interval: params.interval,
@@ -28,7 +19,7 @@ export const reportService = {
 
   getAttendanceAnalytics: async (params) => {
     try {
-      const response = await API.get('/api/reports/analytics/attendance', {
+      const response = await api.get('/api/reports/analytics/attendance', {
         params: {
           date: params.endDate,
           interval: params.interval,
@@ -43,7 +34,7 @@ export const reportService = {
 
   getFinancialAnalytics: async (params) => {
     try {
-      const response = await API.get('/api/reports/analytics/financial', {
+      const response = await api.get('/api/reports/analytics/financial', {
         params: {
           date: params.endDate,
           interval: params.interval,

@@ -1,53 +1,50 @@
-{
-  /* eslint-disable */
-}
-
-import { createContext, useState, useEffect } from 'react';
+import { createContext, useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import axios from 'axios';
+import { getCsrfToken } from '../utils/csrf';
 
 export const UserContext = createContext();
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 
-  const checkSession = async () => {
+  const checkSession = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/auth/session`,
-        {
-          withCredentials: true,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-
+      const response = await axios.get(`${API_URL}/api/auth/session`, { 
+        withCredentials: true 
+      });
+      
       if (response.data.authenticated) {
         setUser(response.data.user);
       }
     } catch (error) {
-      console.log('Session check failed or user not logged in');
+      console.log('Session check failed or user not logged in', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_URL]);
 
   useEffect(() => {
     checkSession();
-  }, []);
+  }, [checkSession]);
 
   const login = async (credentials) => {
     try {
+      // Get CSRF token before making login request
+      const csrfToken = await getCsrfToken();
+      
       const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/login`,
+        `${API_URL}/api/auth/login`, 
         credentials,
         {
           withCredentials: true,
           headers: {
             'Content-Type': 'application/json',
-          },
+            'X-CSRF-Token': csrfToken
+          }
         }
       );
 
@@ -55,27 +52,29 @@ export const UserProvider = ({ children }) => {
       setUser(userData);
       return userData;
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
+      const csrfToken = await getCsrfToken();
+      
       await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/auth/logout`,
+        `${API_URL}/api/auth/logout`, 
         {},
         {
           withCredentials: true,
           headers: {
-            'Content-Type': 'application/json',
-          },
+            'X-CSRF-Token': csrfToken
+          }
         }
       );
       setUser(null);
       localStorage.clear();
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear user state even if logout fails
       setUser(null);
       localStorage.clear();
     }

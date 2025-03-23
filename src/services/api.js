@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { authService } from './authService';
+import { getCsrfToken, resetCsrfToken } from '../utils/csrf';
 
 // Create base axios instance with common configuration
 const api = axios.create({
@@ -10,21 +11,46 @@ const api = axios.create({
   },
 });
 
+// Add request interceptor for CSRF token
+api.interceptors.request.use(async (config) => {
+  // Don't add CSRF token for these methods
+  if (['GET', 'HEAD', 'OPTIONS'].includes(config.method?.toUpperCase())) {
+    return config;
+  }
+
+  try {
+    // Get CSRF token
+    const token = await getCsrfToken();
+    if (token) {
+      config.headers['X-CSRF-Token'] = token;
+    }
+  } catch (error) {
+    console.error('Error fetching CSRF token:', error);
+  }
+
+  return config;
+});
+
 // Add response interceptor for handling authentication
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
-
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-      try {
-        await authService.refreshToken();
-        return api(originalRequest);
-      } catch (refreshError) {
-        await authService.logout();
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.csrf === false
+    ) {
+      const originalRequest = error.config;
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        try {
+          resetCsrfToken();
+          const token = await getCsrfToken();
+          originalRequest.headers['X-CSRF-Token'] = token;
+          return api(originalRequest);
+        } catch (retryError) {
+          console.error('Error refreshing CSRF token:', retryError);
+          // Consider redirecting to login or showing error message
+        }
       }
     }
     return Promise.reject(error);
@@ -124,6 +150,173 @@ export const memberService = {
   // Pay due amount
   payDue: async (paymentData) => {
     const response = await api.post(`/api/memberships/pay-due`, paymentData);
+    return response.data;
+  },
+};
+
+export const userService = {
+  // User managment
+  addUser: async (userData) => {
+    const response = await api.post(`/api/user/signup`, userData);
+    return response.data;
+  },
+
+  // Fetch all users
+  getUsers: async () => {
+    const response = await api.get('/api/users');
+    return response.data;
+  },
+
+  // Create new user
+  createUser: async (userData) => {
+    const response = await api.post('/api/users', userData);
+    return response.data;
+  },
+
+  // Update user
+  updateUser: async (userId, userData) => {
+    const response = await api.put(`/api/users/${userId}`, userData);
+    return response.data;
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/api/users/${userId}`);
+    return response.data;
+  },
+
+  // First member signp
+  Signup: async (userData) => {
+    const response = await api.post('/api/auth/register', userData);
+    return response.data;
+  },
+};
+
+export const rolesService = {
+  // Fetch all roles
+  getRoles: async () => {
+    const response = await api.get('/api/roles');
+    return response.data;
+  },
+
+  // Create new role
+  createRole: async (roleData) => {
+    const response = await api.post('/api/roles', roleData);
+    return response.data;
+  },
+
+  // Update role
+  updateRole: async (roleName, roleData) => {
+    const response = await api.put(`/api/roles/${roleName}`, roleData);
+    return response.data;
+  },
+
+  // Delete role
+  deleteRole: async (roleName) => {
+    const response = await api.delete(`/api/roles/${roleName}`);
+    return response.data;
+  },
+};
+
+export const utilService = {
+  getGyms: async () => {
+    const response = await api.get('/api/utils/gyms');
+    return response.data;
+  },
+
+  getGymSettings: async () => {
+    const response = await api.get('/api/utils/gym');
+    return response.data;
+  },
+
+  getBackupSchedule: async () => {
+    const response = await api.get('/api/settings/next-backup');
+    return response.data;
+  },
+
+  getSystemInfo: async () => {
+    const response = await api.get('/api/settings/system-info');
+    return response.data;
+  },
+
+  getSettings: async () => {
+    const response = await api.get('/api/settings');
+    return response.data;
+  },
+};
+
+export const settingService = {
+  // Fetch all settings
+  getSettings: async () => {
+    const response = await api.get('/api/settings');
+    return response.data;
+  },
+
+  validateSettings: async (settingsData) => {
+    const response = await api.put('/api/settings/gym/validate', settingsData);
+    return response.data;
+  },
+
+  saveSettings: async (settingsData) => {
+    const response = await api.put('/api/settings/gym', settingsData);
+    return response.data;
+  },
+
+  getBackups: async () => {
+    const response = await api.get('/api/settings/backups');
+    return response.data;
+  },
+
+  restoreBackup: async (filename) => {
+    const response = await api.post(`/api/settings/restore/${filename}`);
+    return response.data;
+  },
+
+  clearLogs: async () => {
+    const response = await api.delete('/api/settings/logs');
+    return response.data;
+  },
+
+  createBackup: async () => {
+    const response = await api.post(
+      '/api/settings/backup',
+      {},
+      {
+        responseType: 'blob',
+      }
+    );
+    return response;
+  },
+};
+
+export const paymentService = {
+  getPaymentRecords: async () => {
+    const response = await api.get('/api/memberships/renew');
+    return response.data;
+  },
+};
+
+export const membershipPlanService = {
+  getPlans: async () => {
+    const response = await api.get('/api/memberships/plans');
+    return response.data;
+  },
+
+  createPlan: async (planData) => {
+    const response = await api.post('/api/memberships/plans', planData);
+    return response.data;
+  },
+
+  updatePlan: async (planId, planData) => {
+    const response = await api.put(
+      `/api/memberships/plans/${planId}`,
+      planData
+    );
+    return response.data;
+  },
+
+  deletePlan: async (planId) => {
+    const response = await api.delete(`/api/memberships/plans/${planId}`);
     return response.data;
   },
 };

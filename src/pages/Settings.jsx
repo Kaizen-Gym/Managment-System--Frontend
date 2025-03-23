@@ -2,7 +2,6 @@ import { useState, useEffect, useContext } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { UserContext } from '../context/UserContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 import {
   FaCog,
   FaUserShield,
@@ -13,6 +12,7 @@ import {
   FaFileDownload,
 } from 'react-icons/fa';
 import usePermissionCheck from '../hooks/usePermissionCheck';
+import { settingService, utilService } from '../services/api';
 
 const Settings = () => {
   usePermissionCheck('view_settings');
@@ -96,21 +96,15 @@ const Settings = () => {
 
   const fetchGymSettings = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/utils/gym`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await utilService.getGymSettings();
 
-      if (response.data) {
-        setGymdata(response.data);
+      if (response) {
+        setGymdata(response);
         // Update the settings state with the gym data
         setSettings((prevSettings) => ({
           ...prevSettings,
-          gymName: response.data.name || '',
-          gymAddress: response.data.address || '',
+          gymName: response.name || '',
+          gymAddress: response.address || '',
           // Add other fields if needed
         }));
       }
@@ -122,14 +116,8 @@ const Settings = () => {
 
   const fetchBackupSchedule = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/settings/next-backup`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setBackupSchedule(response.data);
+      const response = await utilService.getBackupSchedule();
+      setBackupSchedule(response);
     } catch (err) {
       console.error('Error fetching backup schedule:', err);
     }
@@ -137,14 +125,8 @@ const Settings = () => {
 
   const fetchSystemInfo = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/settings/system-info`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setSystemInfo(response.data.data);
+      const response = await utilService.getSystemInfo();
+      setSystemInfo(response.data);
     } catch (err) {
       console.error('Error fetching system info:', err);
       setError('Failed to fetch system information');
@@ -154,14 +136,8 @@ const Settings = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/settings`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setSettings(response.data);
+      const response = await settingService.getSettings();
+      setSettings(response);
     } catch (err) {
       setError('Failed to fetch settings');
       console.error(err);
@@ -179,45 +155,29 @@ const Settings = () => {
 
   const handleSaveSettings = async () => {
     try {
-      const token = localStorage.getItem('token');
-
       // First validate
-      await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/settings/gym/validate`,
-        {
-          gymName: settings.gymName,
-          gymAddress: settings.gymAddress,
-          contactEmail: settings.contactEmail,
-          contactPhone: settings.contactPhone,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await settingService.validateSettings({
+        gymName: settings.gymName,
+        gymAddress: settings.gymAddress,
+        contactEmail: settings.contactEmail,
+        contactPhone: settings.contactPhone,
+      });
 
       // Then save if validation passes
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/settings/gym`,
-        {
-          gymName: settings.gymName,
-          gymAddress: settings.gymAddress,
-          contactEmail: settings.contactEmail,
-          contactPhone: settings.contactPhone,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await settingService.saveSettings({
+        gymName: settings.gymName,
+        gymAddress: settings.gymAddress,
+        contactEmail: settings.contactEmail,
+        contactPhone: settings.contactPhone,
+      });
 
       setSuccess('Settings saved successfully');
       setIsEditing(false); // Turn off edit mode
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      if (err.response?.data?.errors) {
+      if (err.response?.errors) {
         // Handle validation errors
-        const errorMessages = Object.values(err.response.data.errors).join(
-          '\n'
-        );
+        const errorMessages = 'Error saving the settings';
         setError(errorMessages);
       } else {
         console.error(err);
@@ -229,14 +189,8 @@ const Settings = () => {
 
   const fetchBackups = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/settings/backups`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      setBackups(response.data);
+      const data = await settingService.getBackups();
+      setBackups(data);
     } catch (err) {
       console.error(err);
       setError('Failed to fetch backups');
@@ -256,14 +210,7 @@ const Settings = () => {
       )
     ) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/settings/restore/${filename}`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        await settingService.restoreBackup(filename);
         setSuccess('Backup restored successfully');
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
@@ -277,13 +224,7 @@ const Settings = () => {
   const handleClearLogs = async () => {
     if (window.confirm('Are you sure you want to clear all logs?')) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.delete(
-          `${import.meta.env.VITE_API_URL}/api/settings/logs`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        await settingService.clearLogs();
         setSuccess('Logs cleared successfully');
         setTimeout(() => setSuccess(null), 3000);
       } catch (err) {
@@ -297,31 +238,20 @@ const Settings = () => {
   const handleBackupDatabase = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL}/api/settings/backup`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          responseType: 'blob', // Important for handling the downloaded file
-        }
-      );
+      const response = await settingService.createBackup();
 
-      // Create a download link for the backup file
+      // Handle the download
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       const currentDate = new Date().toISOString().split('T')[0];
       link.href = url;
-      link.setAttribute('download', `backup-${currentDate}.gz`); // or whatever extension your backend uses
+      link.setAttribute('download', `backup-${currentDate}.gz`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
 
       setSuccess('Database backup completed successfully');
-      // Refresh the backup list
       fetchBackups();
     } catch (err) {
       console.error('Backup error:', err);
