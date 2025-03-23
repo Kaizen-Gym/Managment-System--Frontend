@@ -13,11 +13,11 @@ import {
   FaUserShield,
   FaMoneyBillAlt,
 } from 'react-icons/fa';
-import axios from 'axios';
 import usePermissions from '../hooks/usePermissions';
 import MemberProfile from './MembersSection/MemberProfile';
 import { UserContext } from '../context/UserContext.jsx';
 import debounce from 'lodash/debounce';
+import { memberService } from '../services/api';
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,33 +35,6 @@ const DashboardLayout = ({ children }) => {
   const { hasPermission } = usePermissions();
   const { user } = useContext(UserContext);
 
-  // useEffect(() => {
-  //   console.debug('DashboardLayout mounted: fetching members');
-  //   fetchMembers();
-  // }, []);
-
-  // const fetchMembers = async () => {
-  //   try {
-  //     const token = localStorage.getItem('token');
-  //     console.debug('fetchMembers: token', token);
-  //     const response = await axios.get(
-  //       'http://localhost:5050/api/member/members',
-  //       {
-  //         headers: {
-  //           Authorization: `Bearer ${token}`,
-  //         },
-  //       }
-  //     );
-  //     console.debug('fetchMembers: response data', response.data);
-  //     setMembers(response.data.members);
-  //     setLoading(false);
-  //   } catch (err) {
-  //     console.error('Error fetching members:', err);
-  //     setError('Failed to fetch members');
-  //     setLoading(false);
-  //   }
-  // };
-
   const debouncedSearch = useCallback(
     debounce(async (query) => {
       if (!query) {
@@ -72,23 +45,10 @@ const DashboardLayout = ({ children }) => {
 
       try {
         setTableLoading(true);
-        const token = localStorage.getItem('token');
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/member/search`,
-          { query },
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (response.data && response.data.members) {
-          setSearchResults(response.data.members);
-          setIsSearching(true);
-        }
+        const results = await memberService.searchMembers(query);
+        setSearchResults(results);
       } catch (error) {
-        console.error('Search error:', error);
+        console.error('Error searching members:', error);
         setSearchResults([]);
       } finally {
         setTimeout(() => {

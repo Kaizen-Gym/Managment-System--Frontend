@@ -1,21 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, Navigate } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { Dialog, DialogPanel } from '@headlessui/react';
 import { FaEdit, FaTrash, FaUsers } from 'react-icons/fa';
 import ErrorAnimation from '../components/Animations/ErrorAnimation';
-import axios from 'axios';
+import { userService, rolesService } from '../services/api';
+import { UserContext } from '../context/UserContext';
 
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
-
-// Create axios instance with defaults
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 const UserManagement = () => {
   usePermissionCheck('manage_users', '/dashboard');
@@ -55,9 +47,9 @@ const UserManagement = () => {
   const [errorAnimation, setErrorAnimation] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Get gymId from stored user
-  const storedUser = JSON.parse(localStorage.getItem('user'));
-  const gymId = storedUser?.gymId;
+  // const storedUser = JSON.parse(localStorage.getItem('user'));
+  // const gymId = storedUser?.gymId;
+  const { user } = useContext(UserContext);
 
   const allPermissions = [
     'view_dashboard',
@@ -78,8 +70,8 @@ const UserManagement = () => {
   const fetchUsers = async () => {
     try {
       setLoadingUsers(true);
-      const response = await api.get('/api/users');
-      setUsers(response.data);
+      const data = await userService.getUsers();
+      setUsers(data);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || 'Failed to fetch users');
       setErrorAnimation(true);
@@ -92,12 +84,11 @@ const UserManagement = () => {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/api/users', {
+      const data = await userService.createUser({
         ...newUser,
-        gymId: gymId,
+        gymId: user.gymId, // Get gymId from context user
       });
-
-      setUsers((prev) => [...prev, response.data]);
+      setUsers((prev) => [...prev, data]);
       setNewUser({
         name: '',
         email: '',
@@ -116,15 +107,15 @@ const UserManagement = () => {
     }
   };
 
-  const handleEditUser = (user) => {
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    if (user._id === currentUser._id) {
+  const handleEditUser = (userToEdit) => {
+    // const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (userToEdit._id === user._id) {
       setErrorMessage('Cannot edit your own account');
       setErrorAnimation(true);
       setTimeout(() => setErrorAnimation(false), 3000);
       return;
     }
-    setEditingUser(user);
+    setEditingUser(userToEdit);
     setIsEditUserModalOpen(true);
   };
 
@@ -147,15 +138,9 @@ const UserManagement = () => {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(
-        `/api/users/${editingUser._id}`,
-        editingUser
-      );
-
+      const data = await userService.updateUser(editingUser._id, editingUser);
       setUsers((prev) =>
-        prev.map((user) =>
-          user._id === response.data._id ? response.data : user
-        )
+        prev.map((user) => (user._id === data._id ? data : user))
       );
       setEditingUser(null);
       setIsEditUserModalOpen(false);
@@ -168,7 +153,7 @@ const UserManagement = () => {
 
   const handleDeleteUser = async (userId) => {
     try {
-      await api.delete(`/api/users/${userId}`);
+      await userService.deleteUser(userId);
       setUsers((prev) => prev.filter((user) => user._id !== userId));
     } catch (error) {
       setErrorMessage(error.response?.data?.message || 'Failed to delete user');
@@ -181,25 +166,7 @@ const UserManagement = () => {
   const fetchRoles = async () => {
     try {
       setLoadingRoles(true);
-      const response = await api.get('/api/roles');
-
-      let data = response.data.map((role) => {
-        if (typeof role === 'string') {
-          role = { name: role, defaultPermissions: [], currentPermissions: [] };
-        }
-        const normalizePerms = (perms) =>
-          Array.isArray(perms)
-            ? perms.map((p) =>
-                typeof p === 'string' ? { name: p, active: false } : p
-              )
-            : [];
-        return {
-          ...role,
-          defaultPermissions: normalizePerms(role.defaultPermissions),
-          currentPermissions: normalizePerms(role.currentPermissions),
-        };
-      });
-
+      const data = await rolesService.getRoles();
       setRoles(data);
     } catch (error) {
       setErrorMessage(error.response?.data?.message || 'Failed to fetch roles');
@@ -213,8 +180,8 @@ const UserManagement = () => {
   const handleAddRole = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.post('/api/roles', newRole);
-      setRoles((prev) => [...prev, response.data]);
+      const data = await rolesService.createRole(newRole);
+      setRoles((prev) => [...prev, data]);
       setNewRole({ name: '', defaultPermissions: [], currentPermissions: [] });
       setIsCreateRoleModalOpen(false);
     } catch (error) {
@@ -232,15 +199,9 @@ const UserManagement = () => {
   const handleUpdateRole = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(
-        `/api/roles/${editingRole.name}`,
-        editingRole
-      );
-
+      const data = await rolesService.updateRole(editingRole.name, editingRole);
       setRoles((prev) =>
-        prev.map((role) =>
-          role.name === response.data.name ? response.data : role
-        )
+        prev.map((role) => (role.name === data.name ? data : role))
       );
       setEditingRole(null);
       setIsEditRoleModalOpen(false);
@@ -253,7 +214,7 @@ const UserManagement = () => {
 
   const handleDeleteRole = async (roleName) => {
     try {
-      await api.delete(`/api/roles/${roleName}`);
+      await rolesService.deleteRole(roleName);
       setRoles((prev) => prev.filter((role) => role.name !== roleName));
     } catch (error) {
       setErrorMessage(error.response?.data?.message || 'Failed to delete role');
@@ -287,6 +248,10 @@ const UserManagement = () => {
       .replace(/_/g, ' ')
       .replace(/\b\w/g, (l) => l.toUpperCase());
   };
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
 
   return (
     <DashboardLayout>

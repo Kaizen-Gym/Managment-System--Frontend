@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PropTypes from 'prop-types';
 
 const Unauthorized = ({ message = "You do not have permission to view this page." }) => {
   const navigate = useNavigate();
@@ -33,6 +34,14 @@ const Unauthorized = ({ message = "You do not have permission to view this page.
       </div>
     </div>
   );
+};
+
+Unauthorized.propTypes = {
+  message: PropTypes.string
+};
+
+Unauthorized.defaultProps = {
+  message: "You do not have permission to view this page."
 };
 
 export default Unauthorized;

@@ -1,7 +1,7 @@
 /* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { userService, utilService } from '../services/api';
 
 function Signup() {
   const navigate = useNavigate();
@@ -22,8 +22,8 @@ function Signup() {
   useEffect(() => {
     const fetchGyms = async () => {
       try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/utils/gyms`);
-        setGyms(response.data);
+        const response = await utilService.getGyms();
+        setGyms(response);
       } catch (error) {
         console.error('Error fetching gyms:', error);
         setError('Failed to load gyms');
@@ -48,12 +48,12 @@ function Signup() {
     }
     try {
       const { confirmPassword, ...signupData } = formData;
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, signupData);
-      if (response.data) {
+      const response = await userService.Signup(signupData);
+      if (response) {
         navigate('/login');
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'An error occurred during signup');
+      setError(err.response?.message || 'An error occurred during signup');
     }
   };
 

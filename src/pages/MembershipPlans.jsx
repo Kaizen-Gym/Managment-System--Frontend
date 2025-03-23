@@ -2,25 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
-import axios from 'axios';
 import { FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
 import { Dialog } from '@headlessui/react';
+import { membershipPlanService } from '../services/api';
 
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
 
-const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}`,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-
 function MembershipPlans() {
   usePermissionCheck('view_membership_plans'); // Requires 'view_membership_plans' permission
-  
+
   const [plans, setPlans] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,7 +23,7 @@ function MembershipPlans() {
     duration: '',
     price: '',
     description: '',
-    features: ['']
+    features: [''],
   });
 
   useEffect(() => {
@@ -41,11 +32,8 @@ function MembershipPlans() {
 
   const fetchPlans = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await API.get(
-        `/api/memberships/plans`,
-      );
-      setPlans(response.data);
+      const data = await membershipPlanService.getPlans();
+      setPlans(data);
       setIsLoading(false);
     } catch (err) {
       setError('Failed to fetch membership plans');
@@ -57,7 +45,7 @@ function MembershipPlans() {
   const handleAddFeature = () => {
     setFormData({
       ...formData,
-      features: [...formData.features, '']
+      features: [...formData.features, ''],
     });
   };
 
@@ -65,7 +53,7 @@ function MembershipPlans() {
     const newFeatures = formData.features.filter((_, i) => i !== index);
     setFormData({
       ...formData,
-      features: newFeatures
+      features: newFeatures,
     });
   };
 
@@ -74,29 +62,18 @@ function MembershipPlans() {
     newFeatures[index] = value;
     setFormData({
       ...formData,
-      features: newFeatures
+      features: newFeatures,
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    
     try {
       if (isEditing) {
-        await API.put(
-          `/api/memberships/plans/${selectedPlan._id}`,
-          formData,
-          
-        );
+        await membershipPlanService.updatePlan(selectedPlan._id, formData);
       } else {
-        await API.post(
-          `/api/memberships/plans`,
-          formData,
-          
-        );
+        await membershipPlanService.createPlan(formData);
       }
-      
       fetchPlans();
       setIsModalOpen(false);
       resetForm();
@@ -114,7 +91,7 @@ function MembershipPlans() {
       duration: plan.duration,
       price: plan.price,
       description: plan.description,
-      features: plan.features
+      features: plan.features,
     });
     setIsModalOpen(true);
   };
@@ -122,11 +99,7 @@ function MembershipPlans() {
   const handleDelete = async (planId) => {
     if (window.confirm('Are you sure you want to delete this plan?')) {
       try {
-        const token = localStorage.getItem('token');
-        await API.delete(
-          `/api/memberships/plans/${planId}`,
-          
-        );
+        await membershipPlanService.deletePlan(planId);
         fetchPlans();
       } catch (err) {
         console.error('Error deleting plan:', err);
@@ -141,30 +114,27 @@ function MembershipPlans() {
       duration: '',
       price: '',
       description: '',
-      features: ['']
+      features: [''],
     });
     setIsEditing(false);
     setSelectedPlan(null);
   };
 
-  if (isLoading) return (
-    <DashboardLayout>
-      <div className="text-center p-4">
-        Loading...
-      </div>
-    </DashboardLayout>
-  );
+  if (isLoading)
+    return (
+      <DashboardLayout>
+        <div className="text-center p-4">Loading...</div>
+      </DashboardLayout>
+    );
 
-  if (error) return (
-    <div className="text-red-500 text-center p-4">
-      {error}
-    </div>
-  );
+  if (error) return <div className="text-red-500 text-center p-4">{error}</div>;
 
   return (
     <DashboardLayout>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Membership Plans</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Membership Plans
+        </h1>
         <button
           onClick={() => {
             resetForm();
@@ -183,7 +153,9 @@ function MembershipPlans() {
             className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200"
           >
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-semibold text-gray-900">{plan.name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900">
+                {plan.name}
+              </h3>
               <div className="flex space-x-2">
                 <button
                   onClick={() => handleEdit(plan)}
@@ -199,14 +171,14 @@ function MembershipPlans() {
                 </button>
               </div>
             </div>
-            
+
             <div className="mb-4">
               <p className="text-3xl font-bold text-gray-900">₹{plan.price}</p>
               <p className="text-gray-600">{plan.duration} months</p>
             </div>
-            
+
             <p className="text-gray-600 mb-4">{plan.description}</p>
-            
+
             <ul className="space-y-2">
               {plan.features.map((feature, index) => (
                 <li key={index} className="flex items-center text-gray-700">
@@ -234,52 +206,70 @@ function MembershipPlans() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Name</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Name
+                </label>
                 <input
                   type="text"
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Duration (months)</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Duration (months)
+                </label>
                 <input
                   type="number"
                   required
                   min="1"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={formData.duration}
-                  onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, duration: e.target.value })
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Price (₹)</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Price (₹)
+                </label>
                 <input
                   type="number"
                   required
                   min="0"
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={formData.price}
-                  onChange={(e) => setFormData({...formData, price: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">Description</label>
+                <label className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
                 <textarea
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                   value={formData.description}
-                  onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Features</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Features
+                </label>
                 {formData.features.map((feature, index) => (
                   <div key={index} className="flex mb-2">
                     <input
@@ -287,7 +277,9 @@ function MembershipPlans() {
                       required
                       className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
                       value={feature}
-                      onChange={(e) => handleFeatureChange(index, e.target.value)}
+                      onChange={(e) =>
+                        handleFeatureChange(index, e.target.value)
+                      }
                     />
                     {formData.features.length > 1 && (
                       <button

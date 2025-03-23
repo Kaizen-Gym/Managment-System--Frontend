@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
-import axios from 'axios';
 import { FaSearch } from 'react-icons/fa';
 import moment from 'moment';
+import { paymentService } from '../services/api';
 
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
@@ -21,18 +21,11 @@ const PaymentRecord = () => {
     const fetchRenewRecords = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(
-          'http://localhost:5050/api/memberships/renew',
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem('token')}`,
-            },
-          }
-        );
-        setRecords(res.data);
-        setFilteredRecords(res.data);
+        const data = await paymentService.getPaymentRecords();
+        setRecords(data);
+        setFilteredRecords(data);
       } catch (err) {
-        setError('Error fetching renewal records' + err.message);
+        setError('Error fetching renewal records: ' + err.message);
         console.error(err);
       }
       setLoading(false);

@@ -15,9 +15,10 @@ import {
   FaExclamationTriangle,
   FaExclamationCircle,
 } from 'react-icons/fa';
-import axios from 'axios';
 import { Dialog, DialogPanel } from '@headlessui/react';
 import PropTypes from 'prop-types';
+import { dashboardService } from '../services/dashboardService';
+import { handleError } from '../utils/errorHandler';
 
 //Components
 import DashboardLayout from '../components/DashboardLayout';
@@ -26,14 +27,6 @@ import ErrorAnimation from '../components/Animations/ErrorAnimation';
 
 //hooks
 import usePermissionCheck from '../hooks/usePermissionCheck';
-
-const API = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL}`,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
 
 function Dashboard() {
   usePermissionCheck('view_dashboard');
@@ -115,35 +108,33 @@ function Dashboard() {
     fetchMembershipPlans();
     fetchUpcomingRenewals();
     fetchDueDetails();
-  }, []);
+  }, [currentPage, itemsPerPage]);
 
   const fetchUpcomingRenewals = async () => {
     try {
-      const response = await API.get('/api/reports/upcoming-renewals');
+      const response = await dashboardService.getUpcomingRenewals();
 
       setUpcomingRenewals({
-        renewals: response.data.renewals || [],
-        totalCount: response.data.totalCount || 0,
-        totalExpectedRevenue: response.data.totalExpectedRevenue || 0,
+        renewals: response.renewals || [],
+        totalCount: response.totalCount || 0,
+        totalExpectedRevenue: response.totalExpectedRevenue || 0,
       });
     } catch (err) {
       console.error('Error fetching upcoming renewals:', {
         message: err.message,
-        response: err.response?.data,
+        response: err.response,
       });
     }
   };
 
   const fetchMembers = async (page = 1, limit = 10) => {
     try {
-      const response = await API.get(
-        `/api/member/members?page=${page}&limit=${limit}`,
-        { withCredentials: true }
-      );
-      setMembers(response.data.members);
-      setmembersdata(response.data);
-      setTotalPages(response.data.totalPages);
-      setCurrentPage(response.data.page);
+      setLoading(true);
+      const response = await dashboardService.getMembers(page, limit);
+      setMembers(response.members);
+      setmembersdata(response);
+      setTotalPages(response.totalPages);
+      setCurrentPage(response.page);
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch members');
@@ -174,7 +165,7 @@ function Dashboard() {
     setIsRenewModalOpen(true);
 
     try {
-      await API.post(`/api/memberships/renew`, newRenewal);
+      await dashboardService.renewMembership(newRenewal);
       fetchMembers(); // Refresh the list
     } catch (err) {
       console.error('Error renewing membership:', err);
@@ -211,13 +202,13 @@ function Dashboard() {
   const handlePayDueSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await API.post('/api/memberships/pay-due', {
+      const response = await dashboardService.payDue({
         number: selectedMember.number,
         amount_paid: parseFloat(duePayment.amount),
         payment_mode: duePayment.payment_mode,
       });
 
-      if (response.data) {
+      if (response) {
         await fetchDueDetails();
         setShowSuccessfullPayment(true);
         // Update the member list and stats
@@ -232,14 +223,14 @@ function Dashboard() {
     } catch (error) {
       setShowSuccessfullPayment(false);
       console.error('Error processing due payment:', error);
-      alert(error.response?.data?.message || 'Error processing payment');
+      alert(error.response?.message || 'Error processing payment');
     }
   };
 
   const fetchDueDetails = async () => {
     try {
-      const response = await API.get('/api/reports/due-details');
-      setDueDetails(response.data);
+      const response = await dashboardService.getDueDetails();
+      setDueDetails(response);
     } catch (err) {
       console.error('Error fetching due details:', err);
     }
@@ -250,7 +241,7 @@ function Dashboard() {
     setIsEditModalOpen(true);
 
     try {
-      await API.put(`/api/member/members/${member.id}`, member);
+      await dashboardService.updateMember(member.id, member);
       fetchMembers(); // Refresh the list
     } catch (err) {
       console.error('Error editing member:', err);
@@ -259,11 +250,7 @@ function Dashboard() {
 
   const handleDeleteMember = async (number) => {
     try {
-      await API.delete(`/api/member/members/${number}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      await dashboardService.deleteMember(number);
       fetchMembers(); // Refresh the list
     } catch (err) {
       console.error('Error deleting member:', err);
@@ -273,27 +260,18 @@ function Dashboard() {
   const handleSubmitNewMember = async (e) => {
     e.preventDefault();
     try {
-      if (newMember.membership_due_amount < 0) {
-        alert('Membership due amount is required and cannot be negative');
-      }
-
       if (!newMember.membership_due_amount) {
         newMember.membership_due_amount = 0;
       }
-
-      // convert membership
       newMember.membership_due_amount = parseFloat(
         newMember.membership_due_amount
       );
 
-      console.log(newMember);
-
-      const response = await API.post('/api/member/signup', newMember);
+      const response = await dashboardService.addMember(newMember);
       setIsAddMemberOpen(false);
-      fetchMembers(); // Refresh the list
+      fetchMembers();
       fetchDashboardStats();
       setNewMember({
-        // Reset form
         name: '',
         number: '',
         gender: '',
@@ -306,9 +284,8 @@ function Dashboard() {
         membership_payment_date: new Date().toISOString().split('T')[0],
       });
 
-      if (response.status === 201) {
+      if (response) {
         setShowSuccessfullPayment(true);
-
         setTimeout(() => {
           setShowSuccessfullPayment(false);
         }, 1500);
@@ -317,7 +294,7 @@ function Dashboard() {
       console.error('Error adding new member:', err);
       setErrorAnimation({
         show: true,
-        message: `An error occurred while adding the member. Contact Support!`,
+        message: 'An error occurred while adding the member. Contact Support!',
       });
       setTimeout(() => setErrorAnimation({ show: false, message: '' }), 3000);
     }
@@ -326,28 +303,54 @@ function Dashboard() {
   const fetchDashboardStats = async () => {
     try {
       // Fetch membership stats
-      const membershipStats = await API.get('/api/reports/membership', {
-        withCredentials: true,
+      const membershipStats = await dashboardService.getMembershipAnalytics({
+        endDate: new Date(),
+        interval: 30,
       });
 
       // Fetch financial stats
-      const financialStats = await API.get('/api/reports/financial', {
-        withCredentials: true,
+      const financialStats = await dashboardService.getFinancialAnalytics({
+        endDate: new Date(),
+        interval: 30,
       });
 
       setDashboardStats({
-        totalMembers: membershipStats.data.totalActiveMembers || 0,
-        newMembers: membershipStats.data.newMemberSignups?.length || 0,
-        expiringMemberships:
-          membershipStats.data.expiringMemberships?.length || 0,
-        totalRevenue: financialStats.data.totalRevenue || 0,
-        totalDue: financialStats.data.totalDue || 0,
-        membersWithDue: financialStats.data.membersWithDue || 0,
-        membershipRenewalRate: membershipStats.data.membershipRenewalRate || 0,
-        paymentSummary: financialStats.data.paymentSummary || {},
+        // Total Members - Get from trends[0].activeMembers
+        totalMembers: membershipStats.trends[0]?.activeMembers || 0,
+
+        // New Members - Get from currentMonthGrowth
+        newMembers: membershipStats.growth?.currentMonthGrowth?.newMembers || 0,
+
+        // Expiring Memberships - Get from churn data
+        expiringMemberships: membershipStats.churn?.lostMembersCount || 0,
+
+        // Total Revenue - Get from profitabilityMetrics
+        totalRevenue: financialStats.profitabilityMetrics?.totalRevenue || 0,
+
+        // Total Due - Get from profitabilityMetrics
+        totalDue: financialStats.profitabilityMetrics?.totalDues || 0,
+
+        // Members with Due
+        membersWithDue: financialStats.duePaymentsTrend?.[0]?.count || 0,
+
+        // Membership Renewal Rate
+        membershipRenewalRate:
+          membershipStats.retention?.currentRetentionRate || 0,
+
+        // Payment Summary
+        paymentSummary: {
+          totalPayments:
+            financialStats.paymentAnalysis?.paymentMethods?.reduce(
+              (acc, method) => acc + (method.count || 0),
+              0
+            ) || 0,
+        },
+
+        // Payment Methods Breakdown
         paymentMethodsBreakdown:
-          financialStats.data.paymentMethodsBreakdown || [],
+          financialStats.paymentAnalysis?.paymentMethods || [],
       });
+
     } catch (err) {
       console.error('Error fetching dashboard stats:', err);
       setError('Failed to fetch dashboard statistics');
@@ -356,10 +359,8 @@ function Dashboard() {
 
   const fetchMembershipPlans = async () => {
     try {
-      const response = await API.get(
-        `${import.meta.env.VITE_API_URL}/api/memberships/plans`
-      );
-      setAvailablePlans(response.data);
+      const response = await dashboardService.getMembershipPlans();
+      setAvailablePlans(response);
     } catch (err) {
       console.error('Error fetching membership plans:', err);
     }
@@ -419,11 +420,10 @@ function Dashboard() {
         membership_payment_date: new Date().toISOString().split('T')[0],
       };
 
-      console.log('Renewal Data:', renewalData); // Use object logging for better debugging
 
-      const response = await API.post('/api/memberships/renew', renewalData);
+      const response = await dashboardService.renewMembership(renewalData);
 
-      if (response.data) {
+      if (response) {
         await Promise.all([
           fetchMembers(),
           fetchDashboardStats(),
@@ -437,10 +437,9 @@ function Dashboard() {
         }, 1500);
       }
     } catch (err) {
-      console.error('Error renewing membership:', err.response?.data || err);
+      console.error('Error renewing membership:', err.response || err);
       alert(
-        err.response?.data?.message ||
-          'Failed to renew membership. Please try again.'
+        err.response?.message || 'Failed to renew membership. Please try again.'
       );
     } finally {
       fetchMembers();
@@ -451,8 +450,8 @@ function Dashboard() {
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     try {
-      await API.put(
-        `${import.meta.env.VITE_API_URL}/api/member/members/${selectedMember.number}`,
+      await dashboardService.updateMember(
+        selectedMember.number,
         selectedMember
       );
       fetchMembers();
@@ -502,7 +501,6 @@ function Dashboard() {
                       Total Members
                     </p>
                     <h3 className="text-2xl font-bold text-gray-900 mt-2">
-                      {membersdata.total}
                       {membersdata.total}
                     </h3>
                   </div>
@@ -591,7 +589,6 @@ function Dashboard() {
                   </div>
                 </div>
                 <p className="text-sm text-gray-500 mt-2">
-                  {dueDetails.members.length || 0} members with dues
                   {dueDetails.members.length || 0} members with dues
                 </p>
               </div>

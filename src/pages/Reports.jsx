@@ -28,6 +28,7 @@ import {
   AreaChart,
   ComposedChart,
 } from 'recharts';
+import PropTypes from 'prop-types';
 
 //components
 import DashboardLayout from '../components/DashboardLayout';
@@ -51,34 +52,34 @@ function Reports() {
 
   // Colors for charts
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-  {/* eslint-disable-next-line */}
-  const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
-  ];
+  
+  // const months = [
+  //   'January',
+  //   'February',
+  //   'March',
+  //   'April',
+  //   'May',
+  //   'June',
+  //   'July',
+  //   'August',
+  //   'September',
+  //   'October',
+  //   'November',
+  //   'December',
+  // ];
 
   // Helper function to calculate the date range based on selected date and interval
   const calculateDateRange = (date, intervalDays) => {
     if (intervalDays === 'all') {
       return {
         startDate: 'Beginning',
-        endDate: new Date()
+        endDate: new Date(),
       };
     }
     if (intervalDays === 'all') {
       return {
         startDate: 'Beginning',
-        endDate: new Date()
+        endDate: new Date(),
       };
     }
     const endDate = new Date(date);
@@ -92,7 +93,6 @@ function Reports() {
     fetchAnalytics({
       endDate: date,
       interval: interval,
-      interval: interval,
     });
   };
 
@@ -102,7 +102,6 @@ function Reports() {
     setInterval(newInterval);
     fetchAnalytics({
       endDate: selectedDate,
-      interval: newInterval,
       interval: newInterval,
     });
   };
@@ -132,55 +131,41 @@ function Reports() {
           interval: params?.interval || interval,
         };
 
-        const [membershipData, attendanceData, financialData] =
-          await Promise.all([
-            reportService.getMembershipAnalytics(queryParams),
-            reportService.getAttendanceAnalytics(queryParams),
-            reportService.getFinancialAnalytics(queryParams),
-          ]);
-
+        const membershipData = await reportService.getMembershipAnalytics(queryParams);
+        const attendanceData = await reportService.getAttendanceAnalytics(queryParams);
+        const financialData = await reportService.getFinancialAnalytics(queryParams);
+        
         setAnalytics({
-          membership: membershipData,
-          attendance: attendanceData,
-          financial: financialData,
+          membership: membershipData || {
+            churn: { currentChurnRate: 0, lostMembersCount: 0 },
+            growth: {
+              monthlyGrowth: [
+                { growthRate: 0, newMembers: 0, totalRevenue: 0 },
+              ],
+            },
+            demographics: { ageDistribution: [] },
+            trends: [],
+          },
+          attendance: attendanceData || {
+            peakHours: { totalVisits: 0, averageVisitDuration: 0 },
+            weeklyPatterns: [],
+          },
+          financial: financialData || {
+            profitabilityMetrics: { totalRevenue: 0, profitMargin: 0 },
+            paymentAnalysis: { paymentMethods: [] },
+            projections: {
+              historicalRevenue: [],
+              projectedRevenue: [],
+              growthRate: 0,
+              upcomingRenewals: [],
+            },
+          },
         });
-
-        setLoading(false);
       } catch (err) {
+        console.error('Error details:', err.response?.data || err.message);
         setError('Failed to fetch analytics data');
+      } finally {
         setLoading(false);
-        console.error('Error fetching analytics:', err);
-      }
-    },
-    [selectedDate, interval]
-  );
-  const fetchAnalytics = useCallback(
-    async (params = null) => {
-      try {
-        setLoading(true);
-        const queryParams = {
-          endDate: params?.endDate || selectedDate,
-          interval: params?.interval || interval,
-        };
-
-        const [membershipData, attendanceData, financialData] =
-          await Promise.all([
-            reportService.getMembershipAnalytics(queryParams),
-            reportService.getAttendanceAnalytics(queryParams),
-            reportService.getFinancialAnalytics(queryParams),
-          ]);
-
-        setAnalytics({
-          membership: membershipData,
-          attendance: attendanceData,
-          financial: financialData,
-        });
-
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch analytics data');
-        setLoading(false);
-        console.error('Error fetching analytics:', err);
       }
     },
     [selectedDate, interval]
@@ -227,6 +212,22 @@ function Reports() {
       </div>
     </div>
   );
+  
+  StatsCard.propTypes = {
+    title: PropTypes.string.isRequired,
+    value: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired,
+    icon: PropTypes.elementType.isRequired,
+    subtext: PropTypes.string,
+    color: PropTypes.string.isRequired
+  };
+  
+  StatsCard.defaultProps = {
+    subtext: ''
+  };
+  
   return (
     <DashboardLayout>
       <div className="flex-1 overflow-y-auto">
@@ -316,9 +317,9 @@ function Reports() {
             />
             <StatsCard
               title="Churn Rate"
-              value={`${(analytics.membership?.churn?.currentChurnRate ?? 0).toFixed(1)}%`}
+              value={`${(analytics?.membership?.churn?.currentChurnRate || 0).toFixed(1)}%`}
               icon={FaUserMinus}
-              subtext={`${analytics.membership?.churn?.lostMembersCount ?? 0} members lost`}
+              subtext={`${analytics?.membership?.churn?.lostMembersCount || 0} members lost`}
               color="red"
             />
           </div>
@@ -482,9 +483,10 @@ function Reports() {
                       </div>
                       <div className="mt-1 text-xs text-gray-500">
                         Growth Rate:{' '}
-                        {analytics.membership.growth.monthlyGrowth[0]?.growthRate.toFixed(
-                          1
-                        )}
+                        {(
+                          analytics.membership?.growth?.monthlyGrowth?.[0]
+                            ?.growthRate ?? 0
+                        ).toFixed(1)}
                         %
                       </div>
                     </div>
